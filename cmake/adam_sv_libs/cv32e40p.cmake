@@ -1,0 +1,74 @@
+set(CV32E40P_SOURCE_DIR "${CMAKE_SOURCE_DIR}/third_party/cv32e40p")
+
+adam_git_submodule_ensure("${CV32E40P_SOURCE_DIR}" RECURSIVE)
+
+adam_sv_add_library(cv32e40p_fpnew_rtl
+  DEPENDS
+    common_cells_rtl
+  BASE_DIR
+    "${CV32E40P_SOURCE_DIR}/rtl/vendor/pulp_platform_fpnew"
+  SOURCES
+    src/fpnew_pkg.sv
+    vendor/opene906/E906_RTL_FACTORY/gen_rtl/clk/rtl/gated_clk_cell.v
+    vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_ctrl.v
+    vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_ff1.v
+    vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_pack_single.v
+    vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_prepare.v
+    vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_round_single.v
+    vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_special.v
+    vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_srt_single.v
+    vendor/opene906/E906_RTL_FACTORY/gen_rtl/fdsu/rtl/pa_fdsu_top.v
+    vendor/opene906/E906_RTL_FACTORY/gen_rtl/fpu/rtl/pa_fpu_dp.v
+    vendor/opene906/E906_RTL_FACTORY/gen_rtl/fpu/rtl/pa_fpu_frbus.v
+    vendor/opene906/E906_RTL_FACTORY/gen_rtl/fpu/rtl/pa_fpu_src_type.v
+    src/fpnew_divsqrt_th_32.sv
+    src/fpnew_classifier.sv
+    src/fpnew_rounding.sv
+    src/fpnew_cast_multi.sv
+    src/fpnew_fma_multi.sv
+    src/fpnew_noncomp.sv
+    src/fpnew_opgroup_fmt_slice.sv
+    src/fpnew_opgroup_multifmt_slice.sv
+    src/fpnew_opgroup_block.sv
+    src/fpnew_divsqrt_multi.sv
+    src/fpnew_top.sv
+)
+
+adam_sv_add_library(cv32e40p_rtl
+  DEPENDS
+    cv32e40p_fpnew_rtl
+  BASE_DIR
+    "${CV32E40P_SOURCE_DIR}/rtl"
+  INCLUDES
+    include/
+  SOURCES
+    include/cv32e40p_fpu_pkg.sv
+    include/cv32e40p_apu_core_pkg.sv
+    include/cv32e40p_pkg.sv
+    cv32e40p_ex_stage.sv
+    cv32e40p_prefetch_controller.sv
+    cv32e40p_apu_disp.sv
+    cv32e40p_load_store_unit.sv
+    cv32e40p_sleep_unit.sv
+    cv32e40p_cs_registers.sv
+    cv32e40p_alu.sv
+    cv32e40p_hwloop_regs.sv
+    cv32e40p_int_controller.sv
+    cv32e40p_controller.sv
+    cv32e40p_prefetch_buffer.sv
+    cv32e40p_if_stage.sv
+    cv32e40p_ff_one.sv
+    cv32e40p_top.sv
+    cv32e40p_id_stage.sv
+    cv32e40p_mult.sv
+    cv32e40p_fifo.sv
+    cv32e40p_compressed_decoder.sv
+    cv32e40p_decoder.sv
+    cv32e40p_alu_div.sv
+    cv32e40p_aligner.sv
+    cv32e40p_core.sv
+    cv32e40p_fp_wrapper.sv
+    cv32e40p_obi_interface.sv
+    cv32e40p_popcnt.sv
+    cv32e40p_register_file_ff.sv
+)

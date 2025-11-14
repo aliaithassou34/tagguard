@@ -23,22 +23,22 @@ module adam_syscfg #(
     ADAM_PAUSE.Slave pause,
 
     AXI_LITE.Slave slv,
-    
+
     output logic      lsdom_rst,
     ADAM_PAUSE.Master lsdom_pause,
 
     output logic      hsdom_rst,
     ADAM_PAUSE.Master hsdom_pause,
-    
+
     output logic      fab_lsdom_rst,
     ADAM_PAUSE.Master fab_lsdom_pause,
-    
+
     output logic      fab_hsdom_rst,
     ADAM_PAUSE.Master fab_hsdom_pause,
-    
+
     output logic      fab_lspa_rst,
     ADAM_PAUSE.Master fab_lspa_pause,
-    
+
     output logic      fab_lspb_rst,
     ADAM_PAUSE.Master fab_lspb_pause,
 
@@ -77,7 +77,7 @@ module adam_syscfg #(
 
     localparam NO_TGTS = 4 + EN_LSPA + EN_LSPB + EN_HSP + EN_LPCPU + EN_LPMEM +
         NO_CPUS + NO_DMAS + NO_MEMS + NO_LSPAS + NO_LSPBS;
-    
+
     DATA_T irq_vec;
 
     // Pause ==================================================================
@@ -113,13 +113,13 @@ module adam_syscfg #(
         .slv (tgt_demux_pause),
         .mst (tgt_pause)
     );
-    
+
     // Interconnect ===========================================================
-    
+
     localparam type RULE_T = adam_cfg_pkg::MMAP_T;
 
     `ADAM_APB_I tgt_apb [NO_TGTS+1] ();
-    
+
     RULE_T tgt_addr_map [NO_TGTS+1];
 
     generate
@@ -136,7 +136,7 @@ module adam_syscfg #(
         `ADAM_CFG_PARAMS_MAP,
 
         .NO_MSTS (NO_TGTS),
-    
+
         .RULE_T (RULE_T)
     ) adam_axil_apb_bridge (
         .seq   (seq),
@@ -147,7 +147,7 @@ module adam_syscfg #(
 
         .addr_map (tgt_addr_map)
     );
-    
+
     // tgt mapping ============================================================
 
     generate
@@ -208,7 +208,7 @@ module adam_syscfg #(
 
                 .irq_vec (irq_vec),
 
-                .tgt_rst       (lsdom_rst),        
+                .tgt_rst       (lsdom_rst),
                 .tgt_pause     (lsdom_pause),
                 .tgt_boot_addr (),
                 .tgt_irq       ()
@@ -230,7 +230,7 @@ module adam_syscfg #(
 
                 .irq_vec (irq_vec),
 
-                .tgt_rst       (hsdom_rst),        
+                .tgt_rst       (hsdom_rst),
                 .tgt_pause     (hsdom_pause),
                 .tgt_boot_addr (),
                 .tgt_irq       ()
@@ -252,7 +252,7 @@ module adam_syscfg #(
 
                 .irq_vec (irq_vec),
 
-                .tgt_rst       (fab_lsdom_rst),        
+                .tgt_rst       (fab_lsdom_rst),
                 .tgt_pause     (fab_lsdom_pause),
                 .tgt_boot_addr (),
                 .tgt_irq       ()
@@ -274,7 +274,7 @@ module adam_syscfg #(
 
                 .irq_vec (irq_vec),
 
-                .tgt_rst       (fab_hsdom_rst),        
+                .tgt_rst       (fab_hsdom_rst),
                 .tgt_pause     (fab_hsdom_pause),
                 .tgt_boot_addr (),
                 .tgt_irq       ()
@@ -296,12 +296,12 @@ module adam_syscfg #(
 
                 .irq_vec (irq_vec),
 
-                .tgt_rst       (fab_lspa_rst),        
+                .tgt_rst       (fab_lspa_rst),
                 .tgt_pause     (fab_lspa_pause),
                 .tgt_boot_addr (),
                 .tgt_irq       ()
-            ); 
-        end 
+            );
+        end
         if (!EN_LSPA) begin
             assign fab_lspa_rst = '1;
             `ADAM_PAUSE_MST_TIE_OFF(fab_lspa_pause);
@@ -322,7 +322,7 @@ module adam_syscfg #(
 
                 .irq_vec (irq_vec),
 
-                .tgt_rst       (fab_lspb_rst),        
+                .tgt_rst       (fab_lspb_rst),
                 .tgt_pause     (fab_lspb_pause),
                 .tgt_boot_addr (),
                 .tgt_irq       ()
@@ -348,7 +348,7 @@ module adam_syscfg #(
 
                 .irq_vec (irq_vec),
 
-                .tgt_rst       (lpcpu_rst),        
+                .tgt_rst       (lpcpu_rst),
                 .tgt_pause     (lpcpu_pause),
                 .tgt_boot_addr (lpcpu_boot_addr),
                 .tgt_irq       (lpcpu_irq)
@@ -374,7 +374,7 @@ module adam_syscfg #(
 
                 .irq_vec (irq_vec),
 
-                .tgt_rst       (lpmem_rst),        
+                .tgt_rst       (lpmem_rst),
                 .tgt_pause     (lpmem_pause),
                 .tgt_boot_addr (),
                 .tgt_irq       ()
@@ -400,7 +400,7 @@ module adam_syscfg #(
 
                 .irq_vec (irq_vec),
 
-                .tgt_rst       (cpu_rst      [i-CPU_S]),        
+                .tgt_rst       (cpu_rst      [i-CPU_S]),
                 .tgt_pause     (cpu_pause    [i-CPU_S]),
                 .tgt_boot_addr (cpu_boot_addr[i-CPU_S]),
                 .tgt_irq       (cpu_irq      [i-CPU_S])
@@ -422,7 +422,7 @@ module adam_syscfg #(
 
                 .irq_vec (irq_vec),
 
-                .tgt_rst       (dma_rst  [i-DMA_S]),        
+                .tgt_rst       (dma_rst  [i-DMA_S]),
                 .tgt_pause     (dma_pause[i-DMA_S]),
                 .tgt_boot_addr (),
                 .tgt_irq       (dma_irq  [i-DMA_S])
@@ -433,7 +433,7 @@ module adam_syscfg #(
             adam_syscfg_tgt #(
                 `ADAM_CFG_PARAMS_MAP,
 
-                .EN_BOOTSTRAP ((i == MEM_S) ? EN_BOOTSTRAP_MEM0 : 0),
+                .EN_BOOTSTRAP (1), // (i == MEM_S) ? EN_BOOTSTRAP_MEM0 : 0),
                 .EN_BOOT_ADDR (0),
                 .EN_IRQ       (0)
             ) tgt_mem (
@@ -444,7 +444,7 @@ module adam_syscfg #(
 
                 .irq_vec (irq_vec),
 
-                .tgt_rst       (mem_rst  [i-MEM_S]),        
+                .tgt_rst       (mem_rst  [i-MEM_S]),
                 .tgt_pause     (mem_pause[i-MEM_S]),
                 .tgt_boot_addr (),
                 .tgt_irq       ()
@@ -466,7 +466,7 @@ module adam_syscfg #(
 
                 .irq_vec (irq_vec),
 
-                .tgt_rst       (lspa_rst  [i-LSPA_S]),        
+                .tgt_rst       (lspa_rst  [i-LSPA_S]),
                 .tgt_pause     (lspa_pause[i-LSPA_S]),
                 .tgt_boot_addr (),
                 .tgt_irq       ()
@@ -488,7 +488,7 @@ module adam_syscfg #(
 
                 .irq_vec (irq_vec),
 
-                .tgt_rst       (lspb_rst  [i-LSPB_S]),        
+                .tgt_rst       (lspb_rst  [i-LSPB_S]),
                 .tgt_pause     (lspb_pause[i-LSPB_S]),
                 .tgt_boot_addr (),
                 .tgt_irq       ()
@@ -510,7 +510,7 @@ module adam_syscfg #(
 
                 .irq_vec (irq_vec),
 
-                .tgt_rst       (hsp_rst  [i-HSP_S]),        
+                .tgt_rst       (hsp_rst  [i-HSP_S]),
                 .tgt_pause     (hsp_pause[i-HSP_S]),
                 .tgt_boot_addr (),
                 .tgt_irq       ()
@@ -521,7 +521,7 @@ module adam_syscfg #(
 
     // irq mapping ============================================================
 
-    localparam NO_IRQ = NO_LSPAS + NO_LSPBS + NO_HSPS; 
+    localparam NO_IRQ = NO_LSPAS + NO_LSPBS + NO_HSPS;
 
     localparam IRQ_LSPA_S = 0;
     localparam IRQ_LSPA_E = IRQ_LSPA_S + NO_LSPAS;

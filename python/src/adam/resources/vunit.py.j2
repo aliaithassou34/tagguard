@@ -1,0 +1,53 @@
+# =============================================================================
+# vunit.py | Auto-generated from template
+# =============================================================================
+
+from pathlib import Path
+from vunit import VUnit
+
+adam = Path("{{adam}}")
+
+# Include Directories
+# =============================================================================
+includes = [
+{%- for include in includes %}
+    adam / "{{include}}",
+{%- endfor %}
+]
+
+# Define Directives
+# =============================================================================
+defines = {
+{%- for k, v in defines.items() %}
+    "{{k}}": "{{v}}",
+{%- endfor %}
+}
+
+# Source Files
+# =============================================================================
+sources = [
+{%- for source in sources %}
+    adam / "{{source}}",
+{%- endfor %}
+]
+
+# Run VUnit
+# =============================================================================
+VU = VUnit.from_argv()
+VU.add_verilog_builtins()
+VU.add_library("lib")
+
+sources = [str(src) for src in sources]
+includes = [str(inc) for inc in includes]
+
+for source in sources:
+    VU.add_source_file(
+        file_name=source,
+        library_name="lib",
+        include_dirs=includes,
+        defines=defines
+    )
+
+VU.set_sim_option("modelsim.vsim_flags.gui", ["-voptargs=+acc"])
+
+VU.main()

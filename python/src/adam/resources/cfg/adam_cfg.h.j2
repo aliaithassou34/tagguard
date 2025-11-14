@@ -1,0 +1,133 @@
+#pragma once
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+
+typedef struct {
+    void *base;
+    void *end;
+} adam_cfg_mmap2_t;
+
+typedef struct {
+    void *base;
+    void *end;
+    size_t size;
+} adam_cfg_mmap3_t;
+
+typedef struct {
+    size_t addr_width;
+    size_t data_width;
+    size_t gpio_width;
+
+    void *rst_boot_addr;
+
+    size_t no_cpus;
+    size_t no_dmas;
+    size_t no_hsps;
+    size_t no_mems;
+
+    bool en_lpcpu;
+    bool en_lpmem;
+    bool en_debug;
+
+    size_t lpmem_size;
+
+    size_t mem_size[{{ mem_size }}];
+
+    size_t no_lspa_gpios;
+    size_t no_lspa_spis;
+    size_t no_lspa_timers;
+    size_t no_lspa_uarts;
+
+    size_t no_lspb_gpios;
+    size_t no_lspb_spis;
+    size_t no_lspb_timers;
+    size_t no_lspb_uarts;
+
+    bool en_bootstrap_cpu0;
+    bool en_bootstrap_mem0;
+    bool en_bootstrap_lpcpu;
+    bool en_bootstrap_lpmem;
+
+    uint32_t debug_idcode;
+    void *debug_addr_halt;
+    void *debug_addr_exception;
+
+    size_t fab_max_trans;
+
+    adam_cfg_mmap_t mmap_lpmem;
+    adam_cfg_mmap_t mmap_syscfg;
+    adam_cfg_mmap_t mmap_lspa;
+    adam_cfg_mmap_t mmap_lspb;
+
+    void *mmap_boundry;
+
+    adam_cfg_mmap_t mmap_debug;
+    adam_cfg_mmap_t mmap_hsp;
+    adam_cfg_mmap_t mmap_mem;
+
+    size_t clk_freq;
+} adam_cfg_t;
+
+static const adam_cfg_t adam_cfg_global = {
+    .addr_width = {{ addr_width }},
+    .data_width = {{ data_width }},
+    .gpio_width = {{ gpio_width }},
+
+    .rst_boot_addr = (void *){{ rst_boot_addr }},
+
+    .no_cpus = {{ no_cpus }},
+    .no_dmas = {{ no_dmas }},
+    .no_hsps = {{ no_hsps }},
+    .no_mems = {{ no_mems }},
+
+    .en_lpcpu = {{ en_lpcpu }},
+    .en_lpmem = {{ en_lpmem }},
+    .en_debug = {{ en_debug }},
+
+    .lpmem_size = {{ lpmem_size }},
+
+    .mem_size = {
+        {%- for size in mem_size -%}
+            {{ size }},
+        {%- endfor -%}
+    },
+
+    .no_lspa_gpios = {{ no_lspa_gpios }},
+    .no_lspa_spis = {{ no_lspa_spis }},
+    .no_lspa_timers = {{ no_lspa_timers }},
+    .no_lspa_uarts = {{ no_lspa_uarts }},
+
+    .no_lspb_gpios = {{ no_lspb_gpios }},
+    .no_lspb_spis = {{ no_lspb_spis }},
+    .no_lspb_timers = {{ no_lspb_timers }},
+    .no_lspb_uarts = {{ no_lspb_uarts }},
+
+    .en_bootstrap_cpu0 = {{ en_bootstrap_cpu0 }},
+    .en_bootstrap_mem0 = {{ en_bootstrap_mem0 }},
+    .en_bootstrap_lpcpu = {{ en_bootstrap_lpcpu }},
+    .en_bootstrap_lpmem = {{ en_bootstrap_lpmem }},
+
+    .debug_idcode = {{ debug_idcode }},
+    .debug_addr_halt = ((void *) {{ debug_addr_halt }}),
+    .debug_addr_exception = ((void *) {{ debug_addr_exception }}),
+
+    .fab_max_trans = {{ fab_max_trans }},
+
+    .mmap_lpmem = {{{ mmap_lpmem | join(", ") }}},
+    .mmap_syscfg = {{{ mmap_syscfg | join(", ") }}),
+        ((void *) {{ mmap_syscfg  }}),
+        ((void *) {{ mmap_syscfg[2] }})
+    },
+    .mmap_lspa = {mmap_lspa[0], mmap_lspa[1], mmap_lspa[2] },
+    .mmap_lspb = {mmap_lspb[0], mmap_lspb[1], mmap_lspb[2] },
+
+    .mmap_boundry = (void *){{ cfg.mmap_boundry }},
+
+    .mmap_debug = { (void *){{ cfg.mmap_debug[0] }}, (void *){{ cfg.mmap_debug[1] }} },
+    .mmap_hsp = { (void *){{ cfg.mmap_hsp[0] }}, (void *){{ cfg.mmap_hsp[1] }}, {{ cfg.mmap_hsp[2] }} },
+    .mmap_mem = { (void *){{ cfg.mmap_mem[0] }}, (void *){{ cfg.mmap_mem[1] }}, {{ cfg.mmap_mem[2] }} },
+
+    .clk_freq = {{ cfg.clk_freq }},
+};

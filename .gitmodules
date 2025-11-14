@@ -1,36 +1,36 @@
-[submodule "libs/axi"]
-	path = libs/axi
+[submodule "third_party/axi"]
+	path = third_party/axi
 	url = https://github.com/pulp-platform/axi.git
-[submodule "libs/apb"]
-	path = libs/apb
+[submodule "third_party/apb"]
+	path = third_party/apb
 	url = https://github.com/pulp-platform/apb.git
-[submodule "libs/common_cells"]
-	path = libs/common_cells
+[submodule "third_party/common_cells"]
+	path = third_party/common_cells
 	url = https://github.com/pulp-platform/common_cells.git
-[submodule "libs/common_verification"]
-	path = libs/common_verification
+[submodule "third_party/common_verification"]
+	path = third_party/common_verification
 	url = https://github.com/pulp-platform/common_verification.git
-[submodule "libs/cv32e40p"]
-	path = libs/cv32e40p
+[submodule "third_party/cv32e40p"]
+	path = third_party/cv32e40p
 	url = https://github.com/openhwgroup/cv32e40p.git
-[submodule "libs/ibex"]
-	path = libs/ibex
+[submodule "third_party/ibex"]
+	path = third_party/ibex
 	url = https://github.com/lowRISC/ibex.git
-[submodule "libs/riscv-dbg"]
-	path = libs/riscv-dbg
+[submodule "third_party/riscv-dbg"]
+	path = third_party/riscv-dbg
 	url = https://github.com/pulp-platform/riscv-dbg.git
-[submodule "libs/tech_cells_generic"]
-	path = libs/tech_cells_generic
+[submodule "third_party/tech_cells_generic"]
+	path = third_party/tech_cells_generic
 	url = https://github.com/pulp-platform/tech_cells_generic
 [submodule "hal/examples/sensemark/coremark"]
 	path = hal/examples/sensemark/coremark
 	url = https://github.com/eembc/coremark.git
-[submodule "libs/cv32e40x"]
-	path = libs/cv32e40x
+[submodule "third_party/cv32e40x"]
+	path = third_party/cv32e40x
 	url = https://github.com/openhwgroup/cv32e40x.git
-[submodule "libs/gemmini-sv"]
-	path = libs/gemmini-sv
+[submodule "third_party/gemmini-sv"]
+	path = third_party/gemmini-sv
 	url = git@gite.lirmm.fr:adac/adam/gemmini-sv.git
-[submodule "libs/tflite-micro"]
-	path = libs/tflite-micro
+[submodule "third_party/tflite-micro"]
+	path = third_party/tflite-micro
 	url = https://github.com/tensorflow/tflite-micro.git

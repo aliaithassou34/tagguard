@@ -1,25 +1,9 @@
-/*
- * Copyright 2025 LIRMM
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 `timescale 1ns/1ps
 `include "adam/macros_bhv.svh"
 `include "vunit_defines.svh"
 
 module adam_tb;
-    import adam_jtag_mst_bhv::*;
+    import adam_dbg_mst_bhv::*;
 
     `ADAM_BHV_CFG_LOCALPARAMS;
 
@@ -117,9 +101,9 @@ module adam_tb;
 
     ADAM_JTAG jtag ();
 
-    adam_jtag_mst_bhv #(
+    adam_dbg_mst_bhv #(
        `ADAM_BHV_CFG_PARAMS_MAP
-    ) jtag_bhv;
+    ) dbg_bhv;
 
     // dut ====================================================================
 
@@ -166,216 +150,13 @@ module adam_tb;
 
     // test ===================================================================
 
-    localparam W_IR = 5;
-
-    localparam IDLE  = 1;
-    localparam ABITS = 7;
-
-    localparam A_IDCODE = 'h01;
-    localparam A_DTMCS  = 'h10;
-    localparam A_DMI    = 'h11;
-
-    localparam W_IDCODE = 32;
-    localparam W_DTMCS  = 32;
-    localparam W_DMI    = ABITS+34;
-
-    localparam A_DMCONTROL  = 'h10;
-    localparam A_DMSTATUS   = 'h11;
-    localparam A_SBCS       = 'h38;
-    localparam A_SBADDRESS0 = 'h39;
-    localparam A_SBDATA0    = 'h3C;
-
-    typedef logic[ABITS-1:0] dmaddr_t;
-    typedef logic[31:0]      dmdata_t;
-
     initial begin
         #1000us $error("timeout");
     end
 
-    task dtm_init();
-        logic [W_IDCODE-1:0] idcode;
-        logic [W_DTMCS-1:0] dtmcs;
-
-        $display("dtm_init start");
-
-        jtag_bhv.reset();
-        jtag_bhv.tap_reset();
-
-        jtag_bhv.tap_reg_read(A_IDCODE, W_IR, idcode, W_IDCODE);
-        assert(idcode == DEBUG_IDCODE);
-
-        jtag_bhv.tap_reg_read(A_DTMCS, W_IR, dtmcs, W_DTMCS);
-        assert(dtmcs[9:4] == ABITS);
-        assert(dtmcs[14:12] == IDLE);
-
-        $display("dtm_init end");
-    endtask
-
-    task dm_init();
-        $display("dm_init start");
-
-        dm_write(A_DMCONTROL, '1); // set dmactive
-
-        $display("dm_init end");
-    endtask
-
-    task dm_select(
-        input [19:0] hartsel
-    );
-        dmdata_t dmcontrol;
-
-        $display("dm_select start");
-
-        dm_read(A_DMCONTROL, dmcontrol);
-
-        dmcontrol[25:6] = {hartsel[ 9: 0], hartsel[19:10]};
-        dm_write(A_DMCONTROL, dmcontrol);
-
-        dm_read(A_DMCONTROL, dmcontrol);
-        assert(dmcontrol[25:6] == {hartsel[ 9: 0], hartsel[19:10]});
-
-        $display("dm_select end");
-    endtask
-
-    task dm_halt();
-        dmdata_t dmcontrol;
-        dmdata_t dmstatus;
-
-        $display("dm_halt start");
-
-        dm_read(A_DMCONTROL, dmcontrol);
-
-        // set haltreq
-        dmcontrol[31] = '1;
-        dm_write(A_DMCONTROL, dmcontrol);
-
-        // wait of allhalted
-        do begin
-            dm_read(A_DMSTATUS, dmstatus);
-        end while (!dmstatus[9]);
-
-        // clear haltreq
-        dmcontrol[31] = '0;
-        dm_write(A_DMCONTROL, dmcontrol);
-
-        $display("dm_halt end");
-    endtask
-
-    task dm_resume();
-        dmdata_t dmcontrol;
-        dmdata_t dmstatus;
-
-        $display("dm_resume start");
-
-        // set resumereq
-        dm_read(A_DMCONTROL, dmcontrol);
-        dmcontrol[30] = '1;
-        dm_write(A_DMCONTROL, dmcontrol);
-
-        // wait allresumeack
-        do begin
-            dm_read(A_DMSTATUS, dmstatus);
-        end while (!dmstatus[17]);
-
-        // clear resumereq
-        dmcontrol[30] = '0;
-        dm_write(A_DMCONTROL, dmcontrol);
-
-        $display("dm_resume end");
-    endtask
-
-    task dm_sb_write(
-        input ADDR_T addr,
-        input DATA_T data
-    );
-        dmdata_t sbcs;
-
-        dm_bus_wait();
-
-        // clear sbreadonaddr
-        dm_read(A_SBCS, sbcs);
-        sbcs[20] = '0;
-        dm_write(A_SBCS, sbcs);
-
-        // write to address0
-        dm_write(A_SBADDRESS0, addr);
-
-        // write to sbdata0
-        dm_write(A_SBDATA0, data);
-
-        dm_bus_wait();
-    endtask
-
-    task dm_sb_read(
-        input  ADDR_T addr,
-        output DATA_T data
-    );
-        dmdata_t sbcs;
-
-        dm_bus_wait();
-
-        // set sbreadonaddr
-        dm_read(A_SBCS, sbcs);
-        sbcs[20] = '1;
-        dm_write(A_SBCS, sbcs);
-
-        // write to address0
-        dm_write(A_SBADDRESS0, addr);
-
-        dm_bus_wait();
-
-        // write to sbdata0
-        dm_read(A_SBDATA0, data);
-    endtask
-
-    task dm_bus_wait();
-        dmdata_t sbcs;
-
-        // wait sbbusy
-        do begin
-            dm_read(A_SBCS, sbcs);
-        end while (sbcs[21]);
-    endtask
-
-    task dm_read(
-        input  dmaddr_t addr,
-        output dmdata_t data
-    );
-        logic [W_DMI-1:0] dmi;
-
-        dmi[ABITS+33:34] = addr;
-        dmi[33:2] = '0;
-        dmi[1:0] = 'd1;
-        jtag_bhv.tap_reg_write(A_DMI, W_IR, dmi, W_DMI);
-
-        repeat (IDLE-1) jtag_bhv.tap_nop();
-
-        jtag_bhv.tap_reg_read(A_DMI, W_IR, dmi, W_DMI);
-        assert(dmi[1:0] == '0);
-        data = dmi[33:2];
-    endtask
-
-    task dm_write(
-        input dmaddr_t addr,
-        input dmdata_t data
-    );
-        logic [31:0] idcode;
-        logic [ABITS+33:0] dmi;
-
-        dmi[ABITS+33:34] = addr;
-        dmi[33:2] = data;
-        dmi[1:0] = 'd2;
-        jtag_bhv.tap_reg_write(A_DMI, W_IR, dmi, W_DMI);
-
-        repeat (IDLE-1) jtag_bhv.tap_nop();
-
-        jtag_bhv.tap_reg_read (A_DMI, W_IR, dmi, W_DMI);
-        assert(dmi[1:0] == 0); // check if op is 0
-    endtask
-
     `TEST_SUITE begin
         `TEST_CASE("minimal") begin
-            jtag_bhv = new(jtag);
+            dbg_bhv = new(jtag);
             #10us;
         end
         `TEST_CASE("debug") begin
@@ -386,21 +167,19 @@ module adam_tb;
             addr  = 32'h0100_0000;
             wdata = 32'hDEAD_BEEF;
 
-            jtag_bhv = new(jtag);
+            dbg_bhv = new(jtag);
 
             if (EN_DEBUG) begin
-                dtm_init();
-                dm_init();
-                dm_select('d1); // HART 1 aka CPU0
-                dm_halt();
-
+                dbg_bhv.dtm_init();
+                dbg_bhv.dm_init();
+                dbg_bhv.dm_select('d1); // HART 1 aka CPU0
+                dbg_bhv.dm_halt();
                 if (EN_BOOTSTRAP_MEM0) begin
-                    dm_sb_write(addr, wdata);
-                    dm_sb_read(addr, rdata);
-                    assert (rdata == wdata);
+                    dbg_bhv.dm_sb_write(addr, wdata);
+                    dbg_bhv.dm_sb_read(addr, rdata);
+                    assert(rdata == wdata);
                 end
-
-                dm_resume();
+                dbg_bhv.dm_resume();
             end
         end
     end

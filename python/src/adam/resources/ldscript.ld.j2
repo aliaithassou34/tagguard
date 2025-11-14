@@ -1,0 +1,9 @@
+MEMORY
+{
+{%- for r in regions %}
+    {{ r.name }} (rwx) : ORIGIN = {{ r.origin }}, LENGTH = {{ r.length }}
+{%- endfor %}
+}
+
+INCLUDE "adam.ld"
+

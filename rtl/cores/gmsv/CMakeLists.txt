@@ -1,0 +1,9 @@
+adam_sv_add_library(adam_core_gmsv_rtl
+  DEPENDS
+    adam_rtl
+    adam_core_cv32e40x_rtl
+    gmsv_rtl
+  SOURCES
+    adam_core_gmsv_cvx_bridge.sv
+    adam_core_gmsv.sv
+)

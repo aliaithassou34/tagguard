@@ -1,0 +1,52 @@
+option(ADAM_ENABLE_IREE "Enable IREE integration" ON)
+
+if(ADAM_ENABLE_IREE)
+  set(IREE_SOURCE_DIR ${ADAM_SOURCE_DIR}/third_party/iree CACHE PATH
+      "IREE source directory.")
+
+  set(IREE_BINARY_DIR ${CMAKE_BINARY_DIR}/iree)
+
+  if(NOT DEFINED IREE_HOST_BIN_DIR)
+    message(FATAL_ERROR "IREE_HOST_BIN_DIR must be set before configuring")
+  else()
+    set(IREE_HOST_BIN_DIR "${IREE_HOST_BIN_DIR}"
+      CACHE PATH "IREE host binary directory")
+  endif()
+
+  set(IREE_BUILD_BINDINGS_TFLITE OFF CACHE BOOL "")
+  set(IREE_BUILD_BINDINGS_TFLITE_JAVA OFF CACHE BOOL "")
+  set(IREE_BUILD_COMPILER OFF CACHE PATH "")
+  set(IREE_BUILD_SAMPLES OFF CACHE PATH "")
+  set(IREE_BUILD_TESTS OFF CACHE PATH "")
+  set(IREE_ENABLE_CPUINFO OFF CACHE PATH "")
+  set(IREE_ENABLE_THREADING OFF CACHE BOOL "")
+  set(IREE_HAL_DRIVER_DEFAULTS OFF CACHE BOOL "")
+  set(IREE_HAL_DRIVER_LOCAL_SYNC ON CACHE BOOL "")
+  set(IREE_HAL_EXECUTABLE_LOADER_DEFAULTS OFF CACHE BOOL "")
+  set(IREE_HAL_EXECUTABLE_LOADER_EMBEDDED_ELF ON CACHE BOOL "")
+  set(IREE_HAL_EXECUTABLE_LOADER_VMVX_MODULE ON CACHE BOOL "")
+  set(IREE_HAL_EXECUTABLE_PLUGIN_DEFAULTS OFF CACHE BOOL "")
+  set(IREE_HAL_EXECUTABLE_PLUGIN_EMBEDDED_ELF ON CACHE BOOL "")
+
+  add_subdirectory(${IREE_SOURCE_DIR} ${IREE_BINARY_DIR} EXCLUDE_FROM_ALL)
+
+  adam_sw_collect_targets(_targets ${IREE_BINARY_DIR})
+
+  foreach(t IN LISTS _targets)
+    get_target_property(_type "${t}" TYPE)
+    if(NOT _type MATCHES "INTERFACE|UTILITY|ALIAS|IMPORTED")
+      target_compile_definitions("${t}" PUBLIC
+        IREE_PLATFORM_GENERIC=1
+        IREE_SYNCHRONIZATION_DISABLE_UNSAFE=1
+        IREE_FILE_IO_ENABLE=0
+        IREE_DEVICE_SIZE_T=uint32_t
+        PRIdsz=PRIu32
+        "IREE_TIME_NOW_FN={return 0\\;}"
+        "IREE_WAIT_UNTIL_FN=(1)||"
+      )
+    endif()
+  endforeach()
+
+  set(IREE_COMPILE_TOOL "iree-compile")
+  set(IREE_EMBED_TOOL "iree-c-embed-data")
+endif()

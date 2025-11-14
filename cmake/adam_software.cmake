@@ -1,0 +1,41 @@
+function(adam_software _NAME)
+  cmake_parse_arguments(_RULE
+    ""
+    "PREFIX;ADAM_CFG"
+    "TARGETS;DEPENDS;BYPRODUCTS"
+    ${ARGN}
+  )
+
+  set(_source_dir "${CMAKE_SOURCE_DIR}/software")
+  set(_binary_dir "${_RULE_PREFIX}/build")
+
+  if(ADAM_ENABLE_IREE)
+    list(APPEND _RULE_DEPENDS iree)
+  endif()
+
+  list(JOIN ADAM_SOFTWARE_TARGETS "," _targets)
+
+  ExternalProject_Add("${_NAME}"
+    PREFIX "${_RULE_PREFIX}"
+    SOURCE_DIR "${_source_dir}"
+    BINARY_DIR "${_binary_dir}"
+    CMAKE_ARGS
+      "-DADAM_CFG=${_RULE_ADAM_CFG}"
+      "-DADAM_EXECUTABLE=${ADAM_EXECUTABLE}"
+      "-DADAM_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+      "-DADAM_SOFTWARE_TARGETS=${_targets}"
+      "-DADAM_ENABLE_IREE=${ADAM_ENABLE_IREE}"
+      "-DADAM_ENABLE_TFLM=${ADAM_ENABLE_TFLM}"
+      "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+      "-DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}"
+      "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}"
+      "-DIREE_HOST_BIN_DIR=${IREE_HOST_BIN_DIR}"
+      "-DPython3_EXECUTABLE=${Python3_EXECUTABLE}"
+    BUILD_ALWAYS 1
+    LIST_SEPARATOR ","
+    DEPENDS ${_RULE_DEPENDS}
+    BUILD_BYPRODUCTS ${_RULE_BYPRODUCTS}
+    USES_TERMINAL_CONFIGURE 1
+    USES_TERMINAL_BUILD 1
+  )
+endfunction()

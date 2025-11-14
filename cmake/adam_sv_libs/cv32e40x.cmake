@@ -1,0 +1,59 @@
+set(CV32E40X_SOURCE_DIR "${CMAKE_SOURCE_DIR}/third_party/cv32e40x")
+
+adam_git_submodule_ensure("${CV32E40X_SOURCE_DIR}" RECURSIVE
+  PATCHES
+    "${CMAKE_SOURCE_DIR}/patches/cv32e40x/0001-Fix-XIF-Result-Handshake.patch"
+)
+
+adam_sv_add_library(cv32e40x_rtl
+    BASE_DIR
+        "${CV32E40X_SOURCE_DIR}/rtl"
+    INCLUDES
+        include
+    SOURCES
+      include/cv32e40x_pkg.sv
+      cv32e40x_if_c_obi.sv
+      cv32e40x_if_xif.sv
+      cv32e40x_align_check.sv
+      cv32e40x_if_stage.sv
+      cv32e40x_csr.sv
+      cv32e40x_debug_triggers.sv
+      cv32e40x_cs_registers.sv
+      cv32e40x_register_file.sv
+      cv32e40x_register_file_wrapper.sv
+      cv32e40x_write_buffer.sv
+      cv32e40x_lsu_response_filter.sv
+      cv32e40x_load_store_unit.sv
+      cv32e40x_id_stage.sv
+      cv32e40x_i_decoder.sv
+      cv32e40x_m_decoder.sv
+      cv32e40x_a_decoder.sv
+      cv32e40x_b_decoder.sv
+      cv32e40x_decoder.sv
+      cv32e40x_compressed_decoder.sv
+      cv32e40x_sequencer.sv
+      cv32e40x_alignment_buffer.sv
+      cv32e40x_prefetch_unit.sv
+      cv32e40x_mult.sv
+      cv32e40x_int_controller.sv
+      cv32e40x_clic_int_controller.sv
+      cv32e40x_ex_stage.sv
+      cv32e40x_wb_stage.sv
+      cv32e40x_div.sv
+      cv32e40x_alu.sv
+      cv32e40x_ff_one.sv
+      cv32e40x_popcnt.sv
+      cv32e40x_alu_b_cpop.sv
+      cv32e40x_controller_fsm.sv
+      cv32e40x_controller_bypass.sv
+      cv32e40x_controller.sv
+      cv32e40x_instr_obi_interface.sv
+      cv32e40x_data_obi_interface.sv
+      cv32e40x_prefetcher.sv
+      cv32e40x_sleep_unit.sv
+      cv32e40x_core.sv
+      cv32e40x_mpu.sv
+      cv32e40x_pma.sv
+      cv32e40x_pc_target.sv
+      cv32e40x_wpt.sv
+)

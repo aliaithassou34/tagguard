@@ -9,11 +9,13 @@
     __opt type      BHV_CFG_T = adam_cfg_pkg::BHV_CFG_T __sep \
     __opt BHV_CFG_T BHV_CFG   = adam_cfg_pkg::BHV_CFG __sep \
     \
-    __opt CLK_PERIOD = BHV_CFG.CLK_PERIOD __sep \
+    __opt CLK_FREQ = BHV_CFG.CLK_FREQ __sep \
     __opt RST_CYCLES = BHV_CFG.RST_CYCLES __sep \
     \
     __opt TA = BHV_CFG.TA __sep \
-    __opt TT = BHV_CFG.TT
+    __opt TT = BHV_CFG.TT __sep \
+    \
+    __opt CLK_PERIOD = (1s / CLK_FREQ)
 
 `define ADAM_BHV_CFG_PARAMS \
     `ADAM_CFG_PARAMS, \

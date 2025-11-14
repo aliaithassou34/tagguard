@@ -1,138 +1,80 @@
+# toolchain ===================================================================
+
+if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+  include("${CMAKE_SOURCE_DIR}/cmake/toolchain.cmake")
+endif()
+
+if (NOT DEFINED ADAM_CFG OR ADAM_CFG STREQUAL "")
+  message(FATAL_ERROR "ADAM_CFG must be defined before configuring.")
+endif()
+
+# project =====================================================================
+
 cmake_minimum_required(VERSION 3.15)
 
-find_package(Python3 REQUIRED COMPONENTS Interpreter)
+project(adam_sw LANGUAGES C CXX ASM)
 
-set(CMAKE_SYSTEM_NAME Generic)
-set(CMAKE_SYSTEM_PROCESSOR riscv)
+# adam ========================================================================
 
-set(TOOLCHAIN_PREFIX "/opt/riscv/bin/riscv32-unknown-elf-"
-  CACHE PATH "Prefix for RISC-V tools")
+set(ADAM_CFG "${ADAM_CFG}" CACHE FILEPATH
+  "ADAM configuration file")
+set(ADAM_SOURCE_DIR "${CMAKE_SOURCE_DIR}/.."
+  CACHE FILEPATH "Root directory of the ADAM project")
+set(ADAM_SOFTWARE_TARGETS "all" CACHE STRING
+  "Semicolon-separated list of software targets to build")
+option(ADAM_ENABLE_TFLM "Enable TFLM integration" OFF)
+option(ADAM_ENABLE_IREE "Enable IREE integration" OFF)
 
-set(CMAKE_C_COMPILER   "${TOOLCHAIN_PREFIX}gcc"     CACHE FILEPATH "")
-set(CMAKE_CXX_COMPILER "${TOOLCHAIN_PREFIX}g++"     CACHE FILEPATH "")
-set(CMAKE_OBJCOPY      "${TOOLCHAIN_PREFIX}objcopy" CACHE FILEPATH "")
-set(CMAKE_OBJDUMP      "${TOOLCHAIN_PREFIX}objdump" CACHE FILEPATH "")
-set(CMAKE_SIZE         "${TOOLCHAIN_PREFIX}size"    CACHE FILEPATH "")
-
-set(ADAM_TARGET_NAME default
-  CACHE STRING "")
-set(ADAM_ROOT_DIR   ${CMAKE_SOURCE_DIR}/..
-  CACHE FILEPATH "")
-set(ADAM_TARGET_DIR ${ADAM_ROOT_DIR}/work/${ADAM_TARGET_NAME}
-  CACHE FILEPATH "")
-
-set(ADAM_LIBS_DIR    ${ADAM_ROOT_DIR}/libs)
-set(ADAM_SCRIPTS_DIR ${ADAM_ROOT_DIR}/scripts)
-set(ADAM_ATGEN_DIR   ${ADAM_TARGET_DIR}/atgen)
-set(ADAM_CODE_LOADER ${ADAM_SCRIPTS_DIR}/code_loader.py)
-set(ADAM_ROM_GEN     ${ADAM_SCRIPTS_DIR}/gen_rom.py)
-
-# =============================================================================
-
-project(adam-software LANGUAGES C CXX ASM)
-
-# =============================================================================
-
-add_library(riscv_base INTERFACE)
-
-target_compile_options(riscv_base INTERFACE
-  -g
-  -O3
-  -mcmodel=medany
-  -static
-  -Wall
-  -Wextra
-  -fdata-sections
-  -ffunction-sections
-  -fstrict-volatile-bitfields
-
-  $<$<COMPILE_LANGUAGE:CXX>:
-    -fno-exceptions
-    -fno-rtti
-    -fno-threadsafe-statics
-    -fno-use-cxa-atexit
-  >
-)
-
-target_link_options(riscv_base INTERFACE
-  -Wl,--gc-sections
-  -nostdlib
-)
-
-# =============================================================================
-
-add_library(riscv_stdlib INTERFACE)
-
-target_link_libraries(riscv_stdlib INTERFACE riscv_base)
-
-target_link_libraries(riscv_stdlib INTERFACE
-  stdc++
-  supc++
-  c_nano
-  m
-  gcc
-  nosys
-)
-
-# =============================================================================
-
-function(add_riscv_interface tgt)
-  set(_flags ${ARGN})
-
-  add_library(${tgt} INTERFACE)
-  target_link_libraries(${tgt} INTERFACE riscv_base)
-  target_compile_options(${tgt} INTERFACE ${_flags})
-  target_link_options(${tgt} INTERFACE ${_flags})
-endfunction()
-
-add_riscv_interface(rv32i    -march=rv32i_zicsr    -mabi=ilp32)
-add_riscv_interface(rv32im   -march=rv32im_zicsr   -mabi=ilp32)
-add_riscv_interface(rv32imc  -march=rv32imc_zicsr  -mabi=ilp32)
-add_riscv_interface(rv32imfc -march=rv32imfc_zicsr -mabi=ilp32f)
-
-# =============================================================================
-
-function(adam_add_executable tgt)
-  add_executable(${tgt} ${ARGN})
-
-  add_custom_command(TARGET ${tgt} POST_BUILD
-    COMMAND ${CMAKE_OBJCOPY} $<TARGET_FILE:${tgt}>
-      -O binary ${CMAKE_CURRENT_BINARY_DIR}/${tgt}.bin
-    COMMAND ${CMAKE_OBJCOPY} $<TARGET_FILE:${tgt}>
-      -O ihex ${CMAKE_CURRENT_BINARY_DIR}/${tgt}.hex
-    COMMAND ${CMAKE_OBJDUMP} -S -D $<TARGET_FILE:${tgt}>
-      > ${CMAKE_CURRENT_BINARY_DIR}/${tgt}.dump
-    COMMAND ${ADAM_ROM_GEN} $<TARGET_FILE:${tgt}>
-      -f sverilog -m ${tgt}_rom -o ${CMAKE_CURRENT_BINARY_DIR}/${tgt}_rom.sv
-    VERBATIM
-  )
-
-  target_link_libraries(${tgt} PRIVATE riscv_base)
-
-  target_link_options(${tgt} PRIVATE
-    -Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/${tgt}.map
-  )
-
-  add_custom_target(${tgt}_load
-    COMMAND ${ADAM_CODE_LOADER} $<TARGET_FILE:${tgt}> -p ${ADAM_PORT}
-    DEPENDS ${tgt}
-  )
-endfunction()
-
-# =============================================================================
-
-include(${CMAKE_SOURCE_DIR}/cmake/tflm.cmake)
-
-if(ADAM_TARGET_NAME MATCHES "hawkeye")
-  add_subdirectory(hawkeye)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "riscv32")
+  set(ADAM_ELF_FORMAT "elf32-littleriscv")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "riscv64")
+  set(ADAM_ELF_FORMAT "elf64-littleriscv")
 else()
-  add_subdirectory(hal)
-  add_subdirectory(bootloader)
-  add_subdirectory(hello_world)
-  if(ADAM_TARGET_NAME MATCHES "nexys_video")
-    add_subdirectory(kws)
-  endif()
-  if(ADAM_TARGET_NAME MATCHES "_gmsv")
-    add_subdirectory(gemmini_sv)
-  endif()
+  message(FATAL_ERROR "Unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
 endif()
+
+# cmake =======================================================================
+
+list(APPEND CMAKE_MODULE_PATH
+  "${ADAM_SOURCE_DIR}/cmake"
+  "${CMAKE_SOURCE_DIR}/cmake"
+)
+
+find_package(Git REQUIRED)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+find_program(ADAM_EXECUTABLE REQUIRED NAMES adam)
+
+include(adam_util)
+include(adam_git)
+
+include(adam_sw_util)
+include(adam_sw_app)
+
+include(adam_sw_ldscript)
+include(adam_sw_riscv)
+include(adam_sw_blob)
+
+if(ADAM_ENABLE_TFLM)
+  include(adam_sw_tflm)
+endif()
+
+if(ADAM_ENABLE_IREE)
+  include(adam_sw_iree)
+  include(adam_sw_iree_vmfb)
+endif()
+
+adam_util_add_ral(ral
+  CFG "${ADAM_CFG}"
+  OUTPUT_DIR "${CMAKE_BINARY_DIR}/ral"
+)
+
+add_subdirectory(lib)
+add_subdirectory(apps)
+
+# =============================================================================
+
+foreach(_t IN LISTS ADAM_SOFTWARE_TARGETS)
+  if(NOT TARGET "${_t}" AND NOT "${_t}" STREQUAL "all")
+    message(FATAL_ERROR "Required software target '${_t}' does not exist.")
+  endif()
+endforeach()

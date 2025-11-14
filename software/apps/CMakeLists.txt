@@ -1,0 +1,10 @@
+# add_subdirectory(bootloader)
+add_subdirectory(gemmini_sv)
+# add_subdirectory(hawkeye)
+add_subdirectory(hello_world)
+# add_subdirectory(iree_vec_mul)
+
+if(ADAM_ENABLE_TFLM)
+  add_subdirectory(tflm_kws)
+  add_subdirectory(tflm_lenet)
+endif()

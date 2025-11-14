@@ -1,0 +1,16 @@
+tcl_port disabled
+telnet_port disabled
+gdb_port {{ gdb_port }}
+
+adapter driver remote_bitbang
+remote_bitbang host localhost
+remote_bitbang port {{ rbb_port }}
+
+set _CHIPNAME riscv
+jtag newtap $_CHIPNAME cpu -irlen 5 -expected-id 0xdeadbeef
+set _TARGETNAME $_CHIPNAME.cpu
+target create $_TARGETNAME riscv -chain-position $_TARGETNAME
+gdb_report_data_abort enable
+
+init
+halt

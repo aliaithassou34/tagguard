@@ -1,0 +1,41 @@
+cmake_minimum_required(VERSION 3.15)
+
+set(CMAKE_CROSSCOMPILING ON)
+set(CMAKE_SYSTEM_NAME Generic)
+set(CMAKE_SYSTEM_PROCESSOR riscv32)
+
+set(RISCV_TOOLCHAIN_ROOT "/opt/riscv"
+  CACHE PATH "RISC-R Toolchain Root")
+
+set(RISCV_TOOLCHAIN_PREFIX "riscv32-unknown-elf"
+  CACHE PATH "RISC-V Toolchain Prefix")
+
+set(CMAKE_CXX_COMPILER "${RISCV_TOOLCHAIN_ROOT}/bin/clang++"
+  CACHE FILEPATH "C++ compiler")
+
+set(CMAKE_C_COMPILER "${RISCV_TOOLCHAIN_ROOT}/bin/clang"
+  CACHE FILEPATH "C compiler")
+
+set(CMAKE_LINKER "${RISCV_TOOLCHAIN_ROOT}/bin/ld.lld"
+  CACHE FILEPATH "Linker")
+
+set(CMAKE_OBJCOPY "${RISCV_TOOLCHAIN_ROOT}/bin/llvm-objcopy"
+  CACHE FILEPATH "Objcopy tool")
+
+set(CMAKE_OBJDUMP "${RISCV_TOOLCHAIN_ROOT}/bin/llvm-objdump"
+  CACHE FILEPATH "Objdump tool")
+
+set(CMAKE_RANLIB "${RISCV_TOOLCHAIN_ROOT}/bin/llvm-ranlib"
+  CACHE FILEPATH "Ranlib tool")
+
+set(CMAKE_SIZE "${RISCV_TOOLCHAIN_ROOT}/bin/llvm-size"
+  CACHE FILEPATH "Size tool")
+
+set(CMAKE_STRIP "${RISCV_TOOLCHAIN_ROOT}/bin/llvm-strip"
+  CACHE FILEPATH "Strip tool")
+
+set(CMAKE_SYSROOT "${RISCV_TOOLCHAIN_ROOT}/${RISCV_TOOLCHAIN_PREFIX}"
+  CACHE PATH "Sysroot")
+
+set(CMAKE_SYSTEM_LIBRARY_PATH "${CMAKE_SYSROOT}/lib/"
+  CACHE PATH "System library path")

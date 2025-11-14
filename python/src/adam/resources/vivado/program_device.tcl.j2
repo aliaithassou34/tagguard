@@ -1,0 +1,15 @@
+open_hw_manager
+connect_hw_server -url {{url}}
+
+puts "Available hardware targets:"
+foreach tgt [get_hw_targets] {
+    puts "   $tgt"
+}
+puts ""
+
+set matches [get_hw_targets *{{device}}]
+open_hw_target $matches
+current_hw_device [lindex [get_hw_devices] 0]
+set_property PROGRAM.FILE { {{bitstream}} } [current_hw_device]
+program_hw_devices [current_hw_device]
+exit

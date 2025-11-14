@@ -1,0 +1,19 @@
+adam_sv_add_library(basys3_rtl
+  DEPENDS
+    adam_rtl
+    adam_core_ibex_rtl
+  DEFINITIONS
+    ADAM_CORE_CPU=adam_core_ibex
+    ADAM_CORE_LPCPU=adam_core_ibex
+    ADAM_ROM=bootloader_rom
+  SOURCES
+    bhv/adam_clk_gate.sv
+    fpga/adam_basys3.sv
+    work/basys3/cmake/bootloader/bootloader_rom.sv
+)
+
+adam_sv_add_library(basys3_bhv
+  DEPENDS
+    basys3_rtl
+    adam_bhv
+)

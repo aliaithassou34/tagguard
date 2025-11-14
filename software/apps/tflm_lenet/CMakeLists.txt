@@ -1,0 +1,15 @@
+adam_sw_app(tflm_lenet
+  SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/tflm_lenet.cpp"
+  LIBRARIES
+    ldscript
+    rv32imc
+    riscv_stdlib
+    tflm
+    ral
+    hal
+    tflm_ext
+    tensor
+    binary_lenet_tflite
+    binary_mnist_test_1064_bmp
+)
