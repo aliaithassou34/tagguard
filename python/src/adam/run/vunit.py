@@ -21,13 +21,13 @@ def run_vunit(
 
     build_dir = build_dir.absolute()
 
-    # build(
-    #     source_dir,
-    #     build_dir,
-    #     targets=[target],
-    #     enable_vunit=True,
-    #     dirty=True
-    # )
+    build(
+        source_dir,
+        build_dir,
+        targets=[f"{target}_vunit_gen"],
+        enable_vunit=True,
+        dirty=True
+    )
 
     vunit_path = build_dir / "targets" / target / "vunit"
     run_py = vunit_path / "run.py"

@@ -3,13 +3,12 @@ from argparse import ArgumentParser, Namespace, RawDescriptionHelpFormatter
 from subprocess import CalledProcessError
 from typing import Sequence
 
-from adam.build import build
+from adam.build import ENABLES, build
 
 from .util import (
     add_source_argument,
     add_build_argument,
     add_dirty_argument,
-    add_bool_argument
 )
 
 
@@ -37,10 +36,8 @@ def configure_parser(parser: ArgumentParser) -> ArgumentParser:
         help="Software project build targets."
     )
 
-    for name in [
-        "vunit", "verilator", "vivado", "vendorize", "tflm", "iree"
-    ]:
-        add_bool_argument(parser, f"--enable-{name}")
+    for name in ENABLES:
+        parser.add_argument(f"--enable-{name}", action="store_true")
 
     return parser
 
@@ -63,6 +60,7 @@ def main(args: Namespace | Sequence[str] | None = None) -> int:
             build_dir=ns.build,
             targets=ns.targets,
             software_targets=ns.software_targets,
+            enable_docs=ns.enable_docs,
             enable_vunit=ns.enable_vunit,
             enable_verilator=ns.enable_verilator,
             enable_vivado=ns.enable_vivado,

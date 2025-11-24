@@ -44,7 +44,7 @@ function(adam_vunit_add_target _NAME)
     VERBATIM
   )
 
-  add_custom_target("${_NAME}_gen" ALL DEPENDS "${_py}" "${_RULE_LIBRARY}")
+  add_custom_target("${_NAME}_gen" DEPENDS "${_py}" "${_RULE_LIBRARY}")
 
   set(_run_cmd "${Python3_EXECUTABLE}" "${_py}"
     -o "${_RULE_BINARY_DIR}"
@@ -65,7 +65,6 @@ function(adam_vunit_add_target _NAME)
 
   if(VSIM_EXECUTABLE)
     add_custom_target("${_NAME}"
-      ALL
       COMMAND ${_run_cmd}
       DEPENDS "${_NAME}_gen"
       WORKING_DIRECTORY "${_BINARY_DIR}"

@@ -35,7 +35,7 @@ For example, to test the ``nexys_video`` target:
 
 .. code-block:: bash
 
-   (adam) /adam $ adam build --dirty --target nexys_video --disable-vivado
+   (adam) /adam $ adam build --dirty --target nexys_video --enable-vunit
 
 The ``--dirty`` flag enables incremental builds without cleaning the
 previous build, which makes development much faster.

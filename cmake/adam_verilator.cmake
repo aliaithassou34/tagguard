@@ -34,7 +34,6 @@ function(adam_verilator_add_target _NAME)
   file(MAKE_DIRECTORY "${_RULE_BINARY_DIR}")
 
   add_custom_target("${_NAME}"
-    ALL
     COMMAND ${_cmd}
     COMMAND make -f Vadam_top.mk
     DEPENDS "${_RULE_LIBRARY}"

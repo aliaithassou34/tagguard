@@ -1,9 +1,19 @@
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Iterable
 import os
 import psutil
 import shutil
 import subprocess
+
+ENABLES = [
+    "docs",
+    "vunit",
+    "verilator",
+    "vivado",
+    "vendorize",
+    "tflm",
+    "iree"
+]
 
 
 class BuildError(RuntimeError):
@@ -32,10 +42,6 @@ def _get_jobs_heuristic() -> int:
     return min(cpu_heuristic, mem_heuristic)
 
 
-def _bool(value: bool) -> str:
-    return "ON" if value else "OFF"
-
-
 def _list(value: list[str]) -> str:
     return ";".join(value)
 
@@ -45,6 +51,7 @@ def build(
     build_dir: Path | None = None,
     targets: Iterable[str] | None = None,
     software_targets: Iterable[str] | None = None,
+    enable_docs: bool | None = None,
     enable_vunit: bool | None = None,
     enable_verilator: bool | None = None,
     enable_vivado: bool | None = None,
@@ -100,30 +107,23 @@ def build(
     if software_targets is not None:
         conf_cmd.append(f"-DADAM_SOFTWARE_TARGETS={_list(software_targets)}")
 
-    if enable_vunit is not None:
-        conf_cmd.append(f"-DADAM_ENABLE_VUNIT={_bool(enable_vunit)}")
+    locals_dict = locals()
+    enable_dict = {
+        name: locals_dict[f"enable_{name}"]
+        for name in ENABLES
+    }
 
-    if enable_verilator is not None:
-        conf_cmd.append(f"-DADAM_ENABLE_VERILATOR={_bool(enable_verilator)}")
-
-    if enable_vivado is not None:
-        conf_cmd.append(f"-DADAM_ENABLE_VIVADO={_bool(enable_vivado)}")
-
-    if enable_vendorize is not None:
-        conf_cmd.append(f"-DADAM_ENABLE_VENDORIZE={_bool(enable_vendorize)}")
-
-    if enable_tflm is not None:
-        conf_cmd.append(f"-DADAM_ENABLE_TFLM={_bool(enable_tflm)}")
-
-    if enable_iree is not None:
-        conf_cmd.append(f"-DADAM_ENABLE_IREE={_bool(enable_iree)}")
+    if any(v is not None for v in enable_dict.values()):
+        for k, v in enable_dict.items():
+            v_str = "ON" if v else "OFF"
+            conf_cmd.append(f"-DADAM_ENABLE_{k.upper()}={v_str}")
 
     subprocess.run(conf_cmd, check=True)
 
     build_cmd = [
         cmake,
         "--build", build_dir,
-        "--parallel", str(jobs)
+        "--parallel", str(jobs),
     ]
 
     subprocess.run(build_cmd, check=True)

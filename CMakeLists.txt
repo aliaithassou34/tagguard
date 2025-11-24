@@ -39,6 +39,7 @@ set(ADAM_TARGETS "all" CACHE STRING
   "Semicolon-separated list of hardware targets to build")
 set(ADAM_SOFTWARE_TARGETS "all" CACHE STRING
   "Semicolon-separated list of software targets to build")
+option(ADAM_ENABLE_DOCS "Enable Sphinx documentation build" ON)
 option(ADAM_ENABLE_VUNIT "Enable VUnit simulation flows" ON)
 option(ADAM_ENABLE_VERILATOR "Enable Verilator simulation flows" OFF)
 option(ADAM_ENABLE_VIVADO "Enable Vivado bitstream generation" ON)
@@ -99,13 +100,16 @@ include(adam_sv_libs/ibex)
 include(adam_sv_libs/riscv_dbg)
 include(adam_sv_libs/tech_cells_generic)
 
-add_subdirectory(docs)
+if(ADAM_ENABLE_DOCS)
+  add_subdirectory(docs)
+endif()
+
 add_subdirectory(rtl)
 add_subdirectory(bhv)
 
 # include(adam_targets/basys3)
 # include(adam_targets/default)
-# include(adam_targets/hawkeye)
+include(adam_targets/hawkeye)
 include(adam_targets/nexys_video)
 # include(adam_targets/nexys_video_cv32e40x)
 # include(adam_targets/nexys_video_gmsv)
@@ -113,8 +117,5 @@ include(adam_targets/nexys_video)
 
 # =============================================================================
 
-foreach(_t IN LISTS ADAM_TARGETS)
-  if(NOT TARGET "${_t}" AND NOT "${_t}" STREQUAL "all")
-    message(FATAL_ERROR "Required target '${_t}' does not exist.")
-  endif()
-endforeach()
+add_custom_target(adam ALL)
+adam_util_add_deps(adam ${ADAM_TARGETS})
