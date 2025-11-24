@@ -26,8 +26,8 @@ done
 cd "$(dirname "$0")"
 
 image_exists() {
-    docker images | awk -v image="$IMAGE" \
-        '$1 == image {found=1} END {print found+0}'
+    docker images --format "{{.Repository}}" |
+        awk -v image="$IMAGE" '$0 == image {found=1} END {print found+0}'
 }
 
 if [[ $(image_exists) -eq 0 ]] || [[ $BUILD -eq 1 ]]; then
