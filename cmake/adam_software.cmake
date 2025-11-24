@@ -13,7 +13,7 @@ function(adam_software _NAME)
     list(APPEND _RULE_DEPENDS iree)
   endif()
 
-  list(JOIN ADAM_SOFTWARE_TARGETS "," _targets)
+  list(JOIN _RULE_TARGETS "," _targets)
 
   ExternalProject_Add("${_NAME}"
     PREFIX "${_RULE_PREFIX}"

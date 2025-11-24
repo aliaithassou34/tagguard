@@ -1,6 +1,21 @@
+/*
+ * Copyright 2025 LIRMM
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Weverything"
-
 #include "tensorflow/lite/c/common.h"
 #include "tensorflow/lite/kernels/internal/portable_tensor_utils.h"
 #include "tensorflow/lite/kernels/internal/reference/conv.h"
@@ -9,11 +24,14 @@
 #include "tensorflow/lite/micro/kernels/conv.h"
 #include "tensorflow/lite/micro/kernels/kernel_util.h"
 #include "tensorflow/lite/micro/micro_log.h"
-
 #pragma clang diagnostic pop
 
 #include "adam/TFLMExt/GmsvConv.h"
-#include "adam/Tensor/Conv2D.h"
+#include "adam/Tensor/Gemm.h"
+#include "adam/Tensor/GmsvGemm.h"
+#include "adam/Tensor/QuantMulAcc.h"
+#include "adam/Tensor/Tensor.h"
+#include "adam/Tensor/TiledConv2D.h"
 
 using namespace adam::tensor;
 using namespace tflite;
@@ -115,74 +133,53 @@ TfLiteStatus GmsvConvEval(TfLiteContext *context, TfLiteNode *node) {
   const int output_height = output_shape.Dims(1);
   const int output_width = output_shape.Dims(2);
 
-  Conv2D<int32_t, int32_t> conv(
-      input_depth, input_height, input_width, output_depth, filter_height,
-      filter_width, stride_height, stride_width, pad_height, pad_width,
-      dilation_height_factor, dilation_width_factor, batches, groups);
+  const int n = batches;
+  const int ic = input_depth;
+  const int ih = input_height;
+  const int iw = input_width;
+  const int oc = output_depth;
+  const int oh = output_height;
+  const int ow = output_width;
+  const int kh = filter_height;
+  const int kw = filter_width;
+  const int sh = stride_height;
+  const int sw = stride_width;
+  const int pt = pad_height;
+  const int pl = pad_width;
+  const int dh = dilation_height_factor;
+  const int dw = dilation_width_factor;
+  const int g = groups;
 
-  int in_size = batches * input_depth * input_height * input_width;
-  int w_size = output_depth * filter_input_depth * filter_height * filter_width;
-  int out_size = batches * output_depth * output_height * output_width;
+  // Conv2D<int8_t, int32_t> conv(ic, ih, iw, oc, kh, kw, sh, sw, pt, pl, dh,
+  // dw,
+  //                              n, g);
 
-  int32_t *in_data = new int32_t[in_size];
-  int32_t *w_data = new int32_t[w_size];
-  int32_t *out_data = new int32_t[out_size];
+  Gemm<int8_t, int32_t> gemm(4, 4, 4);
+  TiledGemm<int8_t, int32_t> tiledGemm(oc, n * oh * ow, kh * kw * ic, gemm);
+  TiledConv2D<int8_t, int32_t> tiledConv(tiledGemm, ic, ih, iw, oc, kh, kw, sh,
+                                         sw, pt, pl, dh, dw, n, g);
 
-  // Input data copy with proper indexing
-  for (int batch = 0; batch < batches; ++batch) {
-    for (int in_channel = 0; in_channel < input_depth; ++in_channel) {
-      for (int in_y = 0; in_y < input_height; ++in_y) {
-        for (int in_x = 0; in_x < input_width; ++in_x) {
+  adam::tensor::Tensor<int8_t> in_tensor({n, ih, iw, ic}, (int8_t *)input_data);
+  adam::tensor::Tensor<int8_t> w_tensor({oc, kh, kw, ic / g},
+                                        (int8_t *)filter_data);
+  adam::tensor::Tensor<int32_t> b_tensor({oc}, (int32_t *)bias_data);
+  adam::tensor::Tensor<int32_t> out_tensor({n, oh, ow, oc});
 
-          int32_t value =
-              input_data[Offset(input_shape, batch, in_y, in_x,
-                                in_channel + 0 * filter_input_depth)];
+  QuantMulAcc<int8_t, int32_t> matMul(input_offset);
+  // conv.run(in_tensor, w_tensor, b_tensor, out_tensor, matMul);
+  // w_tensor.print();
+  // std::printf("\n");
 
-          int index =
-              ((batch * input_depth + in_channel) * input_height + in_y) *
-                  input_width +
-              in_x;
+  tiledConv.run(in_tensor, w_tensor, b_tensor, out_tensor, matMul);
+  // w_tensor.print();
+  // std::printf("\n");
 
-          in_data[index] = value + input_offset;
-        }
-      }
-    }
-  }
-
-  // Weights copy with explicit 4D indexing
-  for (int out_channel = 0; out_channel < output_depth; ++out_channel) {
-    for (int in_channel = 0; in_channel < filter_input_depth; ++in_channel) {
-      for (int filter_y = 0; filter_y < filter_height; ++filter_y) {
-        for (int filter_x = 0; filter_x < filter_width; ++filter_x) {
-          int32_t value = filter_data[Offset(filter_shape, out_channel,
-                                             filter_y, filter_x, in_channel)];
-
-          int index =
-              ((out_channel * filter_input_depth + in_channel) * filter_height +
-               filter_y) *
-                  filter_width +
-              filter_x;
-
-          w_data[index] = value;
-        }
-      }
-    }
-  }
-
-  // Run the convolution
-  conv.run(in_data, w_data, bias_data, out_data);
-
-  // Output post-processing with structured indexing
+  // Output post-processing
   for (int batch = 0; batch < batches; ++batch) {
     for (int out_channel = 0; out_channel < output_depth; ++out_channel) {
       for (int out_y = 0; out_y < output_height; ++out_y) {
         for (int out_x = 0; out_x < output_width; ++out_x) {
-          int index =
-              ((batch * output_depth + out_channel) * output_height + out_y) *
-                  output_width +
-              out_x;
-
-          int32_t value = out_data[index];
+          int32_t value = out_tensor(batch, out_y, out_x, out_channel);
           value = MultiplyByQuantizedMultiplier(
               value, output_multiplier[out_channel], output_shift[out_channel]);
           value += output_offset;
@@ -194,81 +191,6 @@ TfLiteStatus GmsvConvEval(TfLiteContext *context, TfLiteNode *node) {
       }
     }
   }
-
-  delete[] out_data;
-
-  // for (int batch = 0; batch < batches; ++batch) {
-  //   for (int out_y = 0; out_y < output_height; ++out_y) {
-  //     const int in_y_origin = (out_y * stride_height) - pad_height;
-  //     for (int out_x = 0; out_x < output_width; ++out_x) {
-  //       const int in_x_origin = (out_x * stride_width) - pad_width;
-  //       for (int out_channel = 0; out_channel < output_depth; ++out_channel)
-  //       {
-  //         auto group = out_channel / filters_per_group;
-  //         int32_t acc = 0;
-  //         for (int filter_y = 0; filter_y < filter_height; ++filter_y) {
-  //           const int in_y = in_y_origin + dilation_height_factor * filter_y;
-  //           for (int filter_x = 0; filter_x < filter_width; ++filter_x) {
-  //             const int in_x = in_x_origin + dilation_width_factor *
-  //             filter_x;
-  //
-  //             // Zero padding by omitting the areas outside the image.
-  //             const bool is_point_inside_image =
-  //                 (in_x >= 0) && (in_x < input_width) && (in_y >= 0) &&
-  //                 (in_y < input_height);
-  //
-  //             if (!is_point_inside_image) {
-  //               continue;
-  //             }
-  //
-  //             for (int in_channel = 0; in_channel < filter_input_depth;
-  //                  ++in_channel) {
-  //               int32_t input_val =
-  //                   input_data[Offset(input_shape, batch, in_y, in_x,
-  //                                     in_channel + group *
-  //                                     filter_input_depth)];
-  //               int32_t filter_val = filter_data[Offset(
-  //                   filter_shape, out_channel, filter_y, filter_x,
-  //                   in_channel)];
-  //               // Accumulate with 32 bits accumulator.
-  //               // In the nudging process during model quantization, we force
-  //               // real value of 0.0 be represented by a quantized value.
-  //               This
-  //               // guarantees that the input_offset is a int8_t, even though
-  //               // it is represented using int32_t. int32_t += int8_t *
-  //               // (int8_t - int8_t) so the highest value we can get from
-  //               each
-  //               // accumulation is [-127, 127] * ([-128, 127] -
-  //               // [-128, 127]), which is [-32512, 32512]. log2(32512)
-  //               // = 14.98, which means we can accumulate at least 2^16
-  //               // multiplications without overflow. The accumulator is
-  //               // applied to a filter so the accumulation logic will hold as
-  //               // long as the filter size (filter_y * filter_x * in_channel)
-  //               // does not exceed 2^16, which is the case in all the models
-  //               // we have seen so far.
-  //               // TODO(b/174275578): Add a check to make sure the
-  //               // accumulator depth is smaller than 2^16.
-  //               acc += filter_val * (input_val + input_offset);
-  //             }
-  //           }
-  //         }
-  //
-  //         if (bias_data) {
-  //           acc += bias_data[out_channel];
-  //         }
-  //         acc = MultiplyByQuantizedMultiplier(
-  //             acc, output_multiplier[out_channel],
-  //             output_shift[out_channel]);
-  //         acc += output_offset;
-  //         acc = std::max(acc, output_activation_min);
-  //         acc = std::min(acc, output_activation_max);
-  //         output_data[Offset(output_shape, batch, out_y, out_x, out_channel)]
-  //         =
-  //             static_cast<int8_t>(acc);
-  //       }
-  //     }
-  //   }
-  // }
 
   return kTfLiteOk;
 }

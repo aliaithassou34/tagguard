@@ -11,6 +11,7 @@ ENABLES = [
     "verilator",
     "vivado",
     "vendorize",
+    "gmsv",
     "tflm",
     "iree"
 ]
@@ -56,6 +57,7 @@ def build(
     enable_verilator: bool | None = None,
     enable_vivado: bool | None = None,
     enable_vendorize: bool | None = None,
+    enable_gmsv: bool | None = None,
     enable_tflm: bool | None = None,
     enable_iree: bool | None = None,
     dirty: bool = False,

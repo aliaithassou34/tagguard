@@ -26,7 +26,7 @@ def start_hw_server(
 
     cmd = [hw_server, "-s", f"tcp::{port}", *args]
 
-    proc = PopenWithCleanup(cmd, log_path=log_path)
+    proc = PopenWithCleanup(cmd)
 
     try:
         wait_for_port("localhost", port)

@@ -36,6 +36,11 @@ target_link_libraries(riscv_stdlib INTERFACE riscv_base)
 target_link_libraries(riscv_stdlib INTERFACE
   stdc++ supc++ c_nano m gcc nosys)
 
+target_link_options(riscv_stdlib INTERFACE
+  -Wl,-u,_printf_float
+  -Wl,-u,_scanf_float
+)
+
 # =============================================================================
 
 function(_add_riscv_interface tgt)

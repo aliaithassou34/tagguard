@@ -65,21 +65,23 @@ def main(args: Namespace | Sequence[str] | None = None) -> int:
         configure_parser(parser)
         ns = parser.parse_args(args)
 
+    ret = 0
+
     if ns.gen_command == "cfg":
-        cfg_main(ns)
+        ret = cfg_main(ns)
     elif ns.gen_command == "ldscript":
-        ldscript_main(ns)
+        ret = ldscript_main(ns)
     elif ns.gen_command == "pkg":
-        pkg_main(ns)
+        ret = pkg_main(ns)
     elif ns.gen_command == "ral":
-        ral_main(ns)
+        ret = ral_main(ns)
     elif ns.gen_command == "rom":
-        rom_main(ns)
+        ret = rom_main(ns)
     elif ns.gen_command == "vivado":
-        vivado_main(ns)
+        ret = vivado_main(ns)
     elif ns.gen_command == "vunit":
-        vunit_main(ns)
+        ret = vunit_main(ns)
     else:
         parser.print_help()
 
-    return 0
+    return ret

@@ -65,6 +65,7 @@ def main(args: Namespace | Sequence[str] | None = None) -> int:
             enable_verilator=ns.enable_verilator,
             enable_vivado=ns.enable_vivado,
             enable_vendorize=ns.enable_vendorize,
+            enable_gmsv=ns.enable_gmsv,
             enable_tflm=ns.enable_tflm,
             enable_iree=ns.enable_iree,
             dirty=ns.dirty

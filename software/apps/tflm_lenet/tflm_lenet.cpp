@@ -1,18 +1,17 @@
+#include <cstdint>
+#include <cstdio>
+
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Weverything"
-#include "tensorflow/lite/micro/kernels/conv.h"
 #include "tensorflow/lite/core/c/common.h"
+#include "tensorflow/lite/micro/kernels/conv.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/micro/micro_mutable_op_resolver.h"
-
 #pragma clang diagnostic pop
 
 #include "adam/Binary/lenet_tflite.h"
 #include "adam/Binary/mnist_test_1064_bmp.h"
 #include "adam/TFLMExt/GmsvConv.h"
-
-#include <cstdint>
-#include <cstdio>
 
 #define RETURN_IF_ERROR(expr)                                                  \
   do {                                                                         \
@@ -126,7 +125,11 @@ int main() {
   if (status != kTfLiteOk)
     printf("Model execution failed\n");
 
-  while (true)
-    ;
-  return 0;
+  printf("gScore: ");
+  for (int i = 0; i < kCategoryCount; ++i) {
+    printf("%f ", gScore[i]);
+  }
+  printf("\n");
+
+  return -1;
 }

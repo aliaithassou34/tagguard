@@ -38,7 +38,7 @@ class Cfg:
     data_width: int = 32
     gpio_width: int = 8
 
-    rst_boot_addr: int = 0x0100_0000
+    rst_boot_addr: int = 0x4000_0000
 
     no_cpus: int = 1
     no_dmas: int = 1
@@ -70,21 +70,21 @@ class Cfg:
     en_bootstrap_lpmem: bool = False
 
     debug_idcode: int = 0x2495_11C3
-    debug_addr_halt: int = 0x0008_0800
-    debug_addr_exception: int = 0x0008_0808
+    debug_addr_halt: int = 0x2000_0800
+    debug_addr_exception: int = 0x2000_0808
 
     fab_max_trans: int = 7
 
-    mmap_lpmem: tuple[int, ...] = (0x0000_0000, 0x0000_8000)
-    mmap_syscfg: tuple[int, ...] = (0x0000_8000, 0x0000_8400)
-    mmap_lspa: tuple[int, ...] = (0x0001_0000, 0x0001_8000, 0x0000_0400)
-    mmap_lspb: tuple[int, ...] = (0x0001_8000, 0x0002_0000, 0x0000_0400)
+    mmap_lpmem: tuple[int, ...] = (0x0000_0000, 0x0100_0000)
+    mmap_syscfg: tuple[int, ...] = (0x0100_0000, 0x0100_0400)
+    mmap_lspa: tuple[int, ...] = (0x1000_0000, 0x1800_0000, 0x0000_0400)
+    mmap_lspb: tuple[int, ...] = (0x1800_8000, 0x2000_0000, 0x0000_0400)
 
-    mmap_boundry: int = 0x0008_0000
+    mmap_boundry: int = 0x2000_0000
 
-    mmap_debug: tuple[int, ...] = (0x0008_0000, 0x0008_8000)
-    mmap_hsp: tuple[int, ...] = (0x0009_0000, 0x0009_8000, 0x0000_0400)
-    mmap_mem: tuple[int, ...] = (0x0100_0000, 0xFFFF_FFFF, 0x0100_0000)
+    mmap_debug: tuple[int, ...] = (0x2000_0000, 0x2000_8000)
+    mmap_hsp: tuple[int, ...] = (0x3000_0000, 0x4000_0000, 0x0000_0400)
+    mmap_mem: tuple[int, ...] = (0x4000_0000, 0xFFFF_FFFF, 0x0100_0000)
 
     clk_freq: int = 50_000_000
     rst_cycles: int = 5

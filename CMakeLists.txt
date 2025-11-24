@@ -44,8 +44,14 @@ option(ADAM_ENABLE_VUNIT "Enable VUnit simulation flows" ON)
 option(ADAM_ENABLE_VERILATOR "Enable Verilator simulation flows" OFF)
 option(ADAM_ENABLE_VIVADO "Enable Vivado bitstream generation" ON)
 option(ADAM_ENABLE_VENDORIZE "Enable ADAM vendorization" ON)
+option(ADAM_ENABLE_GMSV "Enable gemmini-sv targets" OFF)
 option(ADAM_ENABLE_TFLM "Enable TFLM integration" OFF)
 option(ADAM_ENABLE_IREE "Enable IREE integration" OFF)
+
+if("${ADAM_TARGETS}" MATCHES "^(all|.*gmsv.*)$")
+  set(ADAM_ENABLE_GMSV ON)
+  set(ADAM_ENABLE_TFLM ON)
+endif()
 
 if("${ADAM_SOFTWARE_TARGETS}" MATCHES "^(all|.*tflm.*)$")
   set(ADAM_ENABLE_TFLM ON)
@@ -111,9 +117,12 @@ add_subdirectory(bhv)
 # include(adam_targets/default)
 include(adam_targets/hawkeye)
 include(adam_targets/nexys_video)
-# include(adam_targets/nexys_video_cv32e40x)
-# include(adam_targets/nexys_video_gmsv)
+include(adam_targets/nexys_video_cv32e40x)
 # include(adam_targets/zybo)
+
+if (ADAM_ENABLE_GMSV)
+  include(adam_targets/nexys_video_gmsv)
+endif()
 
 # =============================================================================
 

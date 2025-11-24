@@ -15,6 +15,13 @@ function(adam_target _NAME)
   set(_pkg_file "${_binary_dir}/adam_cfg_pkg.sv")
   set(_sw_dir "${_binary_dir}/software")
 
+  if(_RULE_APP)
+    set(_app "${_RULE_APP}")
+    set(_rom_target "${_app}_sv")
+    set(_rom_file "${_sw_dir}/build/apps/${_app}/${_app}.sv")
+    set(_rom_dep "${_NAME}_software")
+  endif()
+
   set(_software_targets ${_rom_target} ${ADAM_SOFTWARE_TARGETS})
 
   set(_cfg ${_NAME}_cfg)
@@ -31,13 +38,6 @@ function(adam_target _NAME)
     DEPENDS ${_cfg}
     BYPRODUCTS "${_rom_file}"
   )
-
-  if(_RULE_APP)
-    set(_app "${_RULE_APP}")
-    set(_rom_target "${_app}_sv")
-    set(_rom_file "${_sw_dir}/build/apps/${_app}/${_app}.sv")
-    set(_rom_dep "${_NAME}_software")
-  endif()
 
   set(_rtl ${_NAME}_rtl)
   adam_sv_add_library(${_rtl}
@@ -69,7 +69,7 @@ function(adam_target _NAME)
 
   if(
     ADAM_ENABLE_VIVADO AND
-    (_RULE_TOP OR _RULE_PART OR _RULE_CONSTRAINTS)
+    (_RULE_TOP AND _RULE_PART AND _RULE_CONSTRAINTS)
   )
     set(_vivado ${_NAME}_vivado)
     adam_vivado_add_target(${_vivado}

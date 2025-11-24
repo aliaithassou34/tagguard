@@ -1,7 +1,10 @@
 import os
+import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
+
+ADAM_MODULE_DIR = Path(__file__).resolve().parent.parent
 
 
 def clog2(x):
@@ -48,3 +51,10 @@ def get_git_info(cwd: str | Path) -> tuple[str, str]:
 
 def get_formated_timestamp() -> str:
     return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+
+
+def resolve_executable(name: str) -> Path:
+    path = shutil.which(name)
+    if path is None:
+        raise FileNotFoundError(f"Executable not found: {name}")
+    return Path(path)

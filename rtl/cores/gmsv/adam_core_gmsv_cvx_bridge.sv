@@ -1,19 +1,3 @@
-/*
- * Copyright 2025 LIRMM
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 module adam_core_gmsv_cvx_bridge
     import gmsv_pkg::*;
     import gmsv_isa_pkg::*;
@@ -91,7 +75,7 @@ module adam_core_gmsv_cvx_bridge
 
         xif_issue_if.issue_ready = (
             xif_issue_if.issue_valid &&
-            !sb_d[id].issue_done
+            !sb_q[id].issue_done
         );
 
         if (xif_issue_if.issue_valid && xif_issue_if.issue_ready) begin
@@ -143,11 +127,11 @@ module adam_core_gmsv_cvx_bridge
 
         for (size_t i = 0; i < SbLen; i++) begin
             id = id_t'(i);
-            if (sb_d[id].commit_done && !sb_d[id].exe_req_done) begin
+            if (sb_q[id].commit_done && !sb_q[id].exe_req_done) begin
                 exe_req_o.id       = id;
-                exe_req_o.instr    = sb_d[id].instr;
-                exe_req_o.rs1_data = sb_d[id].rs1_data;
-                exe_req_o.rs2_data = sb_d[id].rs2_data;
+                exe_req_o.instr    = sb_q[id].instr;
+                exe_req_o.rs1_data = sb_q[id].rs1_data;
+                exe_req_o.rs2_data = sb_q[id].rs2_data;
                 exe_req_valid_o = 1;
 
                 if (exe_req_valid_o && exe_req_ready_i) begin
@@ -160,7 +144,7 @@ module adam_core_gmsv_cvx_bridge
 
         id = exe_rsp_i.id;
 
-        exe_rsp_ready_o = !sb_d[id].exe_rsp_done;
+        exe_rsp_ready_o = !sb_q[id].exe_rsp_done;
 
         if (exe_rsp_valid_i && exe_rsp_ready_o) begin
             sb_d[id].rd_addr  = exe_rsp_i.rd_addr;
@@ -174,12 +158,12 @@ module adam_core_gmsv_cvx_bridge
 
         for (size_t i = 0; i < SbLen; i++) begin
             id = id_t'(i);
-            if (sb_d[id].exe_rsp_done && !sb_d[id].result_done) begin
+            if (sb_q[id].exe_rsp_done && !sb_q[id].result_done) begin
                 xif_result_if.result.id   = id;
-                xif_result_if.result.data = sb_d[id].rd_data;
-                xif_result_if.result.rd   = sb_d[id].rd_addr;
-                xif_result_if.result.we   = sb_d[id].rd_write;
-                xif_result_if.result.err  = sb_d[id].error;
+                xif_result_if.result.data = sb_q[id].rd_data;
+                xif_result_if.result.rd   = sb_q[id].rd_addr;
+                xif_result_if.result.we   = sb_q[id].rd_write;
+                xif_result_if.result.err  = sb_q[id].error;
                 xif_result_if.result_valid = 1;
 
                 if (
@@ -196,11 +180,11 @@ module adam_core_gmsv_cvx_bridge
         for (size_t i = 0; i < SbLen; i++) begin
             id = id_t'(i);
             if (
-                sb_d[id].issue_done &&
-                sb_d[id].commit_done &&
-                sb_d[id].result_done &&
-                sb_d[id].exe_req_done &&
-                sb_d[id].exe_rsp_done
+                sb_q[id].issue_done &&
+                sb_q[id].commit_done &&
+                sb_q[id].result_done &&
+                sb_q[id].exe_req_done &&
+                sb_q[id].exe_rsp_done
             ) begin
                 sb_d[id] = '0;
             end

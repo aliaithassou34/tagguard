@@ -164,7 +164,7 @@ module adam_tb;
             DATA_T  wdata;
             DATA_T  rdata;
 
-            addr  = 32'h0100_0000;
+            addr  = MMAP_MEM.start;
             wdata = 32'hDEAD_BEEF;
 
             dbg_bhv = new(jtag);

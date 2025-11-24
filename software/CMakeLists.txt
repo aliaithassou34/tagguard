@@ -14,6 +14,8 @@ cmake_minimum_required(VERSION 3.15)
 
 project(adam_software LANGUAGES C CXX ASM)
 
+enable_testing()
+
 # adam ========================================================================
 
 set(ADAM_CFG "${ADAM_CFG}" CACHE FILEPATH
@@ -53,6 +55,7 @@ include(adam_sw_app)
 include(adam_sw_ldscript)
 include(adam_sw_riscv)
 include(adam_sw_blob)
+include(adam_sw_cpputest)
 
 if(ADAM_ENABLE_TFLM)
   include(adam_sw_tflm)
@@ -70,6 +73,7 @@ adam_util_add_ral(ral
 
 add_subdirectory(lib)
 add_subdirectory(apps)
+add_subdirectory(test)
 
 # =============================================================================
 

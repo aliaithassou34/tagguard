@@ -45,13 +45,16 @@ def main(args: Namespace | Sequence[str] | None = None) -> int:
         configure_parser(parser)
         ns = parser.parse_args(args)
 
+    ret = 0
+
     if ns.command == "build":
-        build_main(ns)
+        ret = build_main(ns)
     elif ns.command == "run":
-        run_main(ns)
+        ret = run_main(ns)
     elif ns.command == "gen":
-        gen_main(ns)
+        ret = gen_main(ns)
     else:
         parser.print_help()
 
-    return 0
+    exit(ret)
+    return ret

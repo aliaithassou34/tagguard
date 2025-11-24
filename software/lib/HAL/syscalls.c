@@ -12,31 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdlib.h>
 #include <errno.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <stdint.h>
 
 #include "adam_ral.h"
 
 #define UNUSED __attribute__((unused))
 
-void* _sbrk(int nbytes) {
+void *_sbrk(int nbytes) {
   extern char __heap_start, __heap_end;
-  static char* heap_ptr = &__heap_start;
+  static char *heap_ptr = &__heap_start;
 
   if (nbytes < 0 || (heap_ptr + nbytes > &__heap_end)) {
     errno = ENOMEM;
-    return (void*) -1;
+    return (void *)-1;
   }
 
-  void* base = heap_ptr;
+  void *base = heap_ptr;
   heap_ptr += nbytes;
   return base;
 }
 
-int _read(int file, char* ptr UNUSED, int len UNUSED) {
+int _read(int file, char *ptr UNUSED, int len UNUSED) {
   if (file != STDIN_FILENO) {
     errno = EBADF;
     return -1;
@@ -44,63 +44,62 @@ int _read(int file, char* ptr UNUSED, int len UNUSED) {
   return 0;
 }
 
-int _write(int file, char* buf, int nbytes) {
+int _write(int file, char *buf, int nbytes) {
   if (file != STDOUT_FILENO && file != STDERR_FILENO) {
     errno = EBADF;
     return -1;
   }
   if (nbytes <= 0 || buf == NULL) {
-    if (buf == NULL) errno = EFAULT;
+    if (buf == NULL)
+      errno = EFAULT;
     return (nbytes < 0) ? 0 : -1;
   }
 
   for (int i = 0; i < nbytes; i++) {
-      while(!RAL.LSPA.UART[0]->TBE);
-      RAL.LSPA.UART[0]->DR = *buf++;
+    while (!RAL.LSPA.UART[0]->TBE)
+      ;
+    RAL.LSPA.UART[0]->DR = *buf++;
   }
 
   return nbytes;
 }
 
-int _close(int file UNUSED) {
-  errno = EBADF;
+int _open(const char *path UNUSED, int flags UNUSED, int mode UNUSED) {
+  errno = ENOSYS;
   return -1;
 }
 
-int _lseek(int file, int offset UNUSED, int whence UNUSED) {
-  if (file != STDOUT_FILENO && file != STDERR_FILENO) {
-    errno = EBADF;
-    return -1;
-  }
-  return 0;
+int _close(int file UNUSED) {
+  errno = ENOSYS;
+  return -1;
 }
 
-int _fstat(int file, struct stat* st) {
-  if (file != STDOUT_FILENO && file != STDERR_FILENO) {
-    errno = EBADF;
-    return -1;
+int _lseek(int file UNUSED, int offset UNUSED, int whence UNUSED) {
+  errno = ENOSYS;
+  return -1;
+}
+
+int _fstat(int file, struct stat *st) {
+  if (file == STDOUT_FILENO || file == STDERR_FILENO) {
+    st->st_mode = S_IFCHR;
+  } else {
+    st->st_mode = S_IFREG;
   }
-  if (st == NULL) {
-    errno = EFAULT;
-    return -1;
-  }
-  st->st_mode = S_IFCHR;
   return 0;
 }
 
 int _isatty(int file) {
-  if (file != STDOUT_FILENO && file != STDERR_FILENO) {
-    errno = EBADF;
-    return -1;
+  return (file == STDOUT_FILENO || file == STDERR_FILENO);
+}
+
+int _getpid(void) { return 0; }
+
+int _kill(int pid UNUSED, int sig UNUSED) { return 0; }
+
+int _gettimeofday(struct timeval *tp, void *tzp UNUSED) {
+  if (tp) {
+    tp->tv_sec = 0;
+    tp->tv_usec = 0;
   }
-  return 1;
-}
-
-int _getpid(void) {
   return 0;
 }
-
-int _kill(int pid UNUSED, int sig UNUSED) {
-  return 0;
-}
-

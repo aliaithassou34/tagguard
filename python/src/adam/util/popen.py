@@ -2,16 +2,16 @@ import atexit
 import os
 import signal
 import subprocess
-from pathlib import Path
-from subprocess import DEVNULL, STDOUT, Popen
-from typing import Optional
+import sys
+import termios
+from subprocess import Popen, DEVNULL
 
 
 class PopenError(RuntimeError):
     def __init__(
         self,
         message: str,
-        proc: Optional[Popen] = None,
+        proc: Popen | None = None,
         limit: int = 4096
     ):
         self.proc = proc
@@ -37,35 +37,28 @@ class PopenError(RuntimeError):
 class PopenWithCleanup(Popen):
     def __init__(
         self,
-        *args,
-        log_path: Optional[Path],
+        args,
+        *,
+        stdin=None,
         **kwargs
     ):
         if os.name == "nt":
             value = subprocess.CREATE_NEW_PROCESS_GROUP
             kwargs.setdefault("creationflags", value)
-
         else:
             kwargs.setdefault("start_new_session", True)
 
-        kwargs.setdefault("stdin", DEVNULL)
-        kwargs.setdefault("stderr", STDOUT)
-
-        if (
-            log_path is not None and
-            "stdout" not in kwargs
-        ):
-            self.log_file = log_path.open("w", buffering=1)
+        stdin = stdin or sys.stdin
+        if hasattr(stdin, "isatty") and stdin.isatty():
+            self.tty_file = stdin
+            self.tty_args = termios.tcgetattr(stdin)
         else:
-            self.log_file = None
+            self.tty_file = None
+            self.tty_args = None
 
-        if self.log_file is not None:
-            kwargs["stdout"] = self.log_file
-            kwargs["text"] = True
+        super().__init__(args, stdin=stdin, **kwargs)
 
-        super().__init__(*args, **kwargs)
-
-        atexit.register(lambda p=self: p.cleanup())
+        atexit.register(self.cleanup)
 
     def __exit__(self):
         self.wait()
@@ -74,9 +67,13 @@ class PopenWithCleanup(Popen):
         self.terminate()
         self.wait(5)
         kill_process_tree(self)
-        if self.log_file is not None:
-            self.log_file.flush()
-            self.log_file.close()
+        if self.tty_file:
+            try:
+                termios.tcsetattr(
+                    self.tty_file, termios.TCSADRAIN, self.tty_args
+                )
+            except Exception:
+                pass
 
 
 def kill_process_tree(proc: Popen) -> None:

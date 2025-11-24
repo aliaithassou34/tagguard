@@ -62,10 +62,9 @@ function(adam_vivado_add_target _NAME)
     VERBATIM
   )
 
-  add_custom_target("${_NAME}_gen" ALL DEPENDS "${_tcl}" "${_RULE_LIBRARY}")
+  add_custom_target("${_NAME}_gen" DEPENDS "${_tcl}" "${_RULE_LIBRARY}")
 
   add_custom_target("${_NAME}"
-    ALL
     COMMAND "${VIVADO_EXECUTABLE}" -mode batch -source "${_tcl}"
     DEPENDS "${_NAME}_gen"
     WORKING_DIRECTORY "${_RULE_BINARY_DIR}"
