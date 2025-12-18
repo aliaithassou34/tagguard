@@ -1,5 +1,6 @@
 add_library(hal OBJECT
   gpio.c
+  memset.c
   spi.c
   syscalls.c
   timer.c

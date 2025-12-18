@@ -16,6 +16,9 @@ def gen_ldscript(cfg: Cfg, output_file: Path):
     for i, length in enumerate(cfg.mem_size):
         addr = start_addr + step_addr * i
 
+        if length == 0:  # ROM
+            length = 1024 ** 3
+
         regions.append({
             "name": f"MEM{i}",
             "origin": f"0x{addr:0{width}X}",

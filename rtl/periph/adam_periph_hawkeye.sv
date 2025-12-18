@@ -105,7 +105,7 @@ module adam_periph_hawkeye #(
 
         d = q;
 
-        din_ready_o = !d.din_valid;
+        din_ready_o = !d.din_valid && !seq.rst;
 
         if (din_valid_i && din_ready_o) begin
             d.din = din_i;

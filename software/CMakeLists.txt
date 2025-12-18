@@ -12,7 +12,7 @@ endif()
 
 cmake_minimum_required(VERSION 3.15)
 
-project(adam_sw LANGUAGES C CXX ASM)
+project(adam_software LANGUAGES C CXX ASM)
 
 # adam ========================================================================
 
@@ -73,8 +73,5 @@ add_subdirectory(apps)
 
 # =============================================================================
 
-foreach(_t IN LISTS ADAM_SOFTWARE_TARGETS)
-  if(NOT TARGET "${_t}" AND NOT "${_t}" STREQUAL "all")
-    message(FATAL_ERROR "Required software target '${_t}' does not exist.")
-  endif()
-endforeach()
+add_custom_target(adam_software ALL)
+adam_util_add_deps(adam_software ${ADAM_SOFTWARE_TARGETS})
