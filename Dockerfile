@@ -53,6 +53,7 @@ RUN dpkg --add-architecture i386 && \
         locales \
         ninja-build \
         numactl \
+        openssh-client \
         patchutils \
         perl \
         perl-doc \
