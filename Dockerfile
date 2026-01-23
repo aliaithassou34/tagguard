@@ -53,7 +53,6 @@ RUN dpkg --add-architecture i386 && \
         locales \
         ninja-build \
         numactl \
-        openssh-client \
         patchutils \
         perl \
         perl-doc \
@@ -97,7 +96,7 @@ ARG JOBS="1"
 
 RUN git clone https://github.com/riscv/riscv-gnu-toolchain.git && \
     cd riscv-gnu-toolchain && \
-    git checkout b8ca156d2ab0038c6af4569c52f9ec30d95342f0 && \
+    git checkout 311e70f6c55953a624ca670de7c85af38c2b23c2 && \
     ./configure --prefix=/opt/riscv \
         --enable-debug-info=yes \
         --disable-linux \
