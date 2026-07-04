@@ -22,6 +22,14 @@ add_subdirectory(dift_cwe_787_funcptr_cots)
 add_subdirectory(dift_cwe_824_uninit_ptr_cots)
 add_subdirectory(bench_cots_trusted_runtime)
 
+# DIFT auto-taint and MMIO-guard demos
+add_subdirectory(dift_autotaint)
+add_subdirectory(dift_autotaint_ra)
+add_subdirectory(dift_no_autotaint_ra)
+add_subdirectory(dift_branch_emulate)
+add_subdirectory(dift_mmio_guard)
+add_subdirectory(diftbypass)
+
 if(ADAM_ENABLE_TFLM)
   add_subdirectory(tflm_kws)
   add_subdirectory(tflm_lenet)

@@ -138,6 +138,10 @@ include(adam_targets/nexys_video_cwe_787_funcptr_cots)
 include(adam_targets/nexys_video_cwe_824_uninit_ptr_cots)
 include(adam_targets/nexys_video_bench_cots_trusted_runtime)
 
+# DIFT auto-taint / MMIO-guard demo targets
+include(adam_targets/nexys_video_dift_autotaint)
+include(adam_targets/nexys_video_dift_mmio_guard)
+
 if (ADAM_ENABLE_GMSV)
   include(adam_targets/nexys_video_gmsv)
 endif()
