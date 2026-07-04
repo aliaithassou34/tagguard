@@ -36,4 +36,4 @@
 	url = https://github.com/tensorflow/tflite-micro.git
 [submodule "third_party/cpputest"]
 	path = third_party/cpputest
-	url = git@github.com:cpputest/cpputest.git
+	url = https://github.com/cpputest/cpputest.git

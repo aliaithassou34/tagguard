@@ -3,9 +3,13 @@ cmake_minimum_required(VERSION 3.15)
 set(CMAKE_CROSSCOMPILING ON)
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR riscv32)
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+
+set(RISCV_COMMON_FLAGS "--gcc-toolchain=${RISCV_TOOLCHAIN_ROOT}"
+  CACHE STRING "RISC-V Common Flags")
 
 set(RISCV_TOOLCHAIN_ROOT "/opt/riscv"
-  CACHE PATH "RISC-R Toolchain Root")
+  CACHE PATH "RISC-V Toolchain Root")
 
 set(RISCV_TOOLCHAIN_PREFIX "riscv32-unknown-elf"
   CACHE PATH "RISC-V Toolchain Prefix")
@@ -48,3 +52,6 @@ set(CMAKE_SYSROOT "${RISCV_TOOLCHAIN_ROOT}/${RISCV_TOOLCHAIN_PREFIX}"
 
 set(CMAKE_SYSTEM_LIBRARY_PATH "${CMAKE_SYSROOT}/lib/"
   CACHE PATH "System library path")
+
+add_compile_options(${RISCV_COMMON_FLAGS})
+add_link_options(${RISCV_COMMON_FLAGS})

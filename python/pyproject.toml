@@ -7,10 +7,20 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "Jinja2==3.1.2",
+    "pillow==12.1.1",
     "psutil==7.0.0",
     "pyelftools==0.29",
-    "tensorflow==2.20.0",
-    "vunit-hdl==4.7.0"
+    "pyserial==3.5",
+    "tqdm==4.67.1",
+    "vunit-hdl==4.7.1",
+]
+
+[project.optional-dependencies]
+tensorflow = [
+    "tensorflow==2.16.2",
+    "tf-keras==2.16.0",
+    "tensorflow-model-optimization==0.8.0",
+    "numpy<2.0"
 ]
 
 [project.scripts]
@@ -18,7 +28,6 @@ adam = "adam.cli.main:main"
 
 [tool.poetry]
 packages = [{include = "adam", from = "src"}]
-
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
