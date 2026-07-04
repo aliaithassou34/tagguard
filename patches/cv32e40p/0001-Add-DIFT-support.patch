@@ -1,0 +1,2740 @@
+diff --git a/rtl/check_tag.sv b/rtl/check_tag.sv
+new file mode 100644
+index 0000000..645755d
+--- /dev/null
++++ b/rtl/check_tag.sv
+@@ -0,0 +1,270 @@
++////////////////////////////////////////////////////////////////////////////////
++// Engineer        Christian Palmiero - cp3025@columbia.edu                   //
++//                                                                            //
++// Design Name:    Check tag                                                  //
++// Project Name:   RI5CY                                                      //
++// Language:       SystemVerilog                                              //
++//                                                                            //
++// Description:    Check decoder                                              //
++//                 This unit reads the CHECK field of the Tag Check           //
++//                 Register and sends the proper signals to the EX stage      //
++//                                                                            //
++////////////////////////////////////////////////////////////////////////////////
++
++module check_tag
++    import cv32e40p_pkg::*;
++(
++  // From IF/ID pipeline
++  input  logic [31:0] instr_rdata_i,
++
++  // From CSRs
++  input  logic [31:0] tcr_i,
++
++  // To EX
++  output logic        source_1_o,
++  output logic        source_2_o,
++  output logic        dest_o,
++
++  // To IF
++  output logic        execute_pc_o
++);
++
++  always_comb
++  begin
++    source_1_o   = 1'b0;
++    source_2_o   = 1'b0;
++    dest_o       = 1'b0;
++    execute_pc_o = tcr_i[EXECUTE_PC];
++
++    unique case (instr_rdata_i[6:0])
++
++      ////////////////////////////////
++      //      _ _   _ __  __ ____   //
++      //     | | | | |  \/  |  _ \  //
++      //  _  | | | | | |\/| | |_) | //
++      // | |_| | |_| | |  | |  __/  //
++      //  \___/ \___/|_|  |_|_|     //
++      //                            //
++      ////////////////////////////////
++
++      OPCODE_JAL,
++      OPCODE_JALR: begin   // Jump and Link
++        source_1_o = tcr_i[JUMP_CHECK_S1];
++        source_2_o = tcr_i[JUMP_CHECK_S2];
++        dest_o     = tcr_i[JUMP_CHECK_D];
++      end
++
++     //////////////////////////////////////////////
++     //  ____  ____      _    _   _  ____ _   _  //
++     // | __ )|  _ \    / \  | \ | |/ ___| | | | //
++     // |  _ \| |_) |  / _ \ |  \| | |   | |_| | //
++     // | |_) |  _ <  / ___ \| |\  | |___|  _  | //
++     // |____/|_| \_\/_/   \_\_| \_|\____|_| |_| //
++     //                                          //
++     //////////////////////////////////////////////
++
++      OPCODE_BRANCH: begin // Branch
++        source_1_o = tcr_i[BRANCH_CHECK_S1];
++        source_2_o = tcr_i[BRANCH_CHECK_S2];
++        dest_o     = 1'b0;
++      end
++
++      //////////////////////////////////
++      //  _     ____    ______ _____  //
++      // | |   |  _ \  / / ___|_   _| //
++      // | |   | | | |/ /\___ \ | |   //
++      // | |___| |_| / /  ___) || |   //
++      // |_____|____/_/  |____/ |_|   //
++      //                              //
++      //////////////////////////////////
++
++      OPCODE_STORE,
++      OPCODE_CUSTOM_1,
++      OPCODE_LUI,
++      OPCODE_AUIPC
++      : begin
++        source_1_o = tcr_i[LOADSTORE_CHECK_DA];
++        source_2_o = tcr_i[LOADSTORE_CHECK_S];
++        dest_o     = tcr_i[LOADSTORE_CHECK_D];
++      end
++
++      /////////////////////////////////////////////////////////////////////////////////
++      //   ___ _____ _   _ _____ ____     ____ _        _    ____ ____  _____ ____   //
++      //  / _ \_   _| | | | ____|  _ \   / ___| |      / \  / ___/ ___|| ____/ ___|  //
++      // | | | || | | |_| |  _| | |_) | | |   | |     / _ \ \___ \___ \|  _| \___ \  //
++      // | |_| || | |  _  | |___|  _ <  | |___| |___ / ___ \ ___) |__) | |___ ___) | //
++      //  \___/ |_| |_| |_|_____|_| \_\  \____|_____/_/   \_\____/____/|_____|____/  //
++      //                                                                             //
++      /////////////////////////////////////////////////////////////////////////////////
++
++      OPCODE_OPIMM: begin
++        unique case (instr_rdata_i[14:12])
++          3'b000: begin  // ADDI
++            source_1_o = tcr_i[INTEGER_CHECK_S1];
++            source_2_o = tcr_i[INTEGER_CHECK_S2];
++            dest_o     = tcr_i[INTEGER_CHECK_D];
++          end
++          3'b001: begin
++            unique case (instr_rdata_i[31:25])
++              7'b0000000: begin // SLLI
++                source_1_o = tcr_i[SHIFT_CHECK_S1];
++                source_2_o = tcr_i[SHIFT_CHECK_S2];
++                dest_o     = tcr_i[SHIFT_CHECK_D];
++              end
++              default: ;
++            endcase
++          end
++          3'b010, 3'b011: begin  // SLTI, SLTIU
++            source_1_o = tcr_i[COMPARISON_CHECK_S1];
++            source_2_o = tcr_i[COMPARISON_CHECK_S2];
++            dest_o     = tcr_i[COMPARISON_CHECK_D];
++          end
++          3'b100, 3'b110, 3'b111: begin  // XORI, ORI, ANDI
++            source_1_o = tcr_i[LOGICAL_CHECK_S1];
++            source_2_o = tcr_i[LOGICAL_CHECK_S2];
++            dest_o     = tcr_i[LOGICAL_CHECK_D];
++          end
++          3'b101: begin
++            unique case (instr_rdata_i[31:25])
++              7'b0000000, 7'b0100000: begin // SRLI, SRAI
++                source_1_o = tcr_i[SHIFT_CHECK_S1];
++                source_2_o = tcr_i[SHIFT_CHECK_S2];
++                dest_o     = tcr_i[SHIFT_CHECK_D];
++              end
++              default: ;
++            endcase
++          end
++          default: ;
++        endcase
++      end
++
++      OPCODE_OP: begin
++        unique case (instr_rdata_i[14:12])
++          3'b000: begin
++            unique case (instr_rdata_i[31:25])
++              7'b0000000, 7'b0100000: begin // ADD, SUB
++                source_1_o = tcr_i[INTEGER_CHECK_S1];
++                source_2_o = tcr_i[INTEGER_CHECK_S2];
++                dest_o     = tcr_i[INTEGER_CHECK_D];
++              end
++              7'b0000001: begin // MUL
++                source_1_o = tcr_i[INTEGER_CHECK_S1];
++                source_2_o = tcr_i[INTEGER_CHECK_S2];
++                dest_o     = tcr_i[INTEGER_CHECK_D];
++              end
++              default: ;
++            endcase
++          end
++          3'b001: begin
++            unique case (instr_rdata_i[31:25])
++              7'b0000000: begin // SLL
++                source_1_o = tcr_i[SHIFT_CHECK_S1];
++                source_2_o = tcr_i[SHIFT_CHECK_S2];
++                dest_o     = tcr_i[SHIFT_CHECK_D];
++              end
++              7'b0000001: begin // MULH
++                source_1_o = tcr_i[INTEGER_CHECK_S1];
++                source_2_o = tcr_i[INTEGER_CHECK_S2];
++                dest_o     = tcr_i[INTEGER_CHECK_D];
++              end
++              default: ;
++            endcase
++          end
++          3'b010: begin
++            unique case (instr_rdata_i[31:25])
++              7'b0000000: begin // SLT
++                source_1_o = tcr_i[COMPARISON_CHECK_S1];
++                source_2_o = tcr_i[COMPARISON_CHECK_S2];
++                dest_o     = tcr_i[COMPARISON_CHECK_D];
++              end
++              7'b0000001: begin // MULHSU
++                source_1_o = tcr_i[INTEGER_CHECK_S1];
++                source_2_o = tcr_i[INTEGER_CHECK_S2];
++                dest_o     = tcr_i[INTEGER_CHECK_D];
++              end
++              default: ;
++            endcase
++          end
++          3'b011: begin
++            unique case (instr_rdata_i[31:25])
++              7'b0000000: begin // SLTU
++                source_1_o = tcr_i[COMPARISON_CHECK_S1];
++                source_2_o = tcr_i[COMPARISON_CHECK_S2];
++                dest_o     = tcr_i[COMPARISON_CHECK_D];
++              end
++              7'b0000001: begin // MULHU
++                source_1_o = tcr_i[INTEGER_CHECK_S1];
++                source_2_o = tcr_i[INTEGER_CHECK_S2];
++                dest_o     = tcr_i[INTEGER_CHECK_D];
++              end
++              default: ;
++            endcase
++          end
++          3'b100: begin
++            unique case (instr_rdata_i[31:25])
++              7'b0000000: begin // XOR
++                source_1_o = tcr_i[LOGICAL_CHECK_S1];
++                source_2_o = tcr_i[LOGICAL_CHECK_S2];
++                dest_o     = tcr_i[LOGICAL_CHECK_D];
++              end
++              7'b0000001: begin // DIV
++                source_1_o = tcr_i[INTEGER_CHECK_S1];
++                source_2_o = tcr_i[INTEGER_CHECK_S2];
++                dest_o     = tcr_i[INTEGER_CHECK_D];
++              end
++              default: ;
++            endcase
++          end
++          3'b101: begin
++            unique case (instr_rdata_i[31:25])
++              7'b0000000, 7'b0100000: begin // SRL, SRA
++                source_1_o = tcr_i[SHIFT_CHECK_S1];
++                source_2_o = tcr_i[SHIFT_CHECK_S2];
++                dest_o     = tcr_i[SHIFT_CHECK_D];
++              end
++              7'b0000001: begin // DIVU
++                source_1_o = tcr_i[INTEGER_CHECK_S1];
++                source_2_o = tcr_i[INTEGER_CHECK_S2];
++                dest_o     = tcr_i[INTEGER_CHECK_D];
++              end
++              default: ;
++            endcase
++          end
++          3'b110: begin
++            unique case (instr_rdata_i[31:25])
++              7'b0000000: begin // OR
++                source_1_o = tcr_i[LOGICAL_CHECK_S1];
++                source_2_o = tcr_i[LOGICAL_CHECK_S2];
++                dest_o     = tcr_i[LOGICAL_CHECK_D];
++              end
++              7'b0000001: begin // REM
++                source_1_o = tcr_i[INTEGER_CHECK_S1];
++                source_2_o = tcr_i[INTEGER_CHECK_S2];
++                dest_o     = tcr_i[INTEGER_CHECK_D];
++              end
++              default: ;
++            endcase
++          end
++          3'b111: begin
++            unique case (instr_rdata_i[31:25])
++              7'b0000000: begin // AND
++                source_1_o = tcr_i[LOGICAL_CHECK_S1];
++                source_2_o = tcr_i[LOGICAL_CHECK_S2];
++                dest_o     = tcr_i[LOGICAL_CHECK_D];
++              end
++              7'b0000001: begin // REMU
++                source_1_o = tcr_i[INTEGER_CHECK_S1];
++                source_2_o = tcr_i[INTEGER_CHECK_S2];
++                dest_o     = tcr_i[INTEGER_CHECK_D];
++              end
++              default: ;
++            endcase
++          end
++          default: ;
++        endcase
++      end
++      default: ;
++    endcase
++  end
++
++endmodule
+\ No newline at end of file
+diff --git a/rtl/cv32e40p_controller.sv b/rtl/cv32e40p_controller.sv
+index 56cce62..9092708 100644
+--- a/rtl/cv32e40p_controller.sv
++++ b/rtl/cv32e40p_controller.sv
+@@ -200,6 +200,12 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+ 
+   // Performance Counters
+   output logic        perf_pipeline_stall_o       // stall due to cv.elw extra cycles
++
++`ifdef DIFT
++  ,
++  input  logic        branch_taken_ex_i_tag,
++  output logic        pc_set_o_tag
++`endif
+ );
+ 
+   // FSM state encoding
+@@ -275,6 +281,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+ 
+     pc_mux_o               = PC_BOOT;
+     pc_set_o               = 1'b0;
++`ifdef DIFT
++    pc_set_o_tag           = 1'b0;
++`endif
+     jump_done              = jump_done_q;
+ 
+     ctrl_fsm_ns            = ctrl_fsm_cs;
+@@ -344,6 +353,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+         instr_req_o   = 1'b1;
+         pc_mux_o      = PC_BOOT;
+         pc_set_o      = 1'b1;
++`ifdef DIFT
++        pc_set_o_tag  = 1'b1;
++`endif
+         if (debug_req_pending) begin
+             ctrl_fsm_ns = DBG_TAKEN_IF;
+             debug_force_wakeup_n = 1'b1;
+@@ -431,15 +443,32 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+           begin //taken branch
+             // there is a branch in the EX stage that is taken
+ 
+-            is_decoding_o = 1'b0;
++`ifdef DIFT
++            // DIFT exception from EX takes priority over branch redirect.
++            // If the branch operand is tainted and check is enabled,
++            // exception_i_tag is asserted — abort the branch and flush.
++            if (illegal_insn_i) begin
++              halt_if_o         = 1'b1;
++              halt_id_o         = 1'b0;
++              is_decoding_o     = 1'b0;
++              ctrl_fsm_ns       = id_ready_i ? FLUSH_EX : DECODE;
++              illegal_insn_n    = 1'b1;
++            end else begin
++`endif
++              is_decoding_o = 1'b0;
+ 
+-            pc_mux_o      = PC_BRANCH;
+-            pc_set_o      = 1'b1;
++              pc_mux_o      = PC_BRANCH;
++              pc_set_o      = 1'b1;
+ 
+-            // if we want to debug, flush the pipeline
+-            // the current_pc_if will take the value of the next instruction to
+-            // be executed (NPC)
++              // if we want to debug, flush the pipeline
++              // the current_pc_if will take the value of the next instruction to
++              // be executed (NPC)
+ 
++`ifdef DIFT
++              if (branch_taken_ex_i_tag)
++                pc_set_o_tag  = 1'b1;
++            end
++`endif
+           end  //taken branch
+ 
+           else if (data_err_i)
+@@ -508,6 +537,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+                 exc_pc_mux_o      = EXC_PC_IRQ;
+                 exc_cause_o       = irq_id_ctrl_i;
+                 csr_irq_sec_o     = irq_sec_ctrl_i;
++`ifdef DIFT
++                pc_set_o_tag  = 1'b1;
++`endif
+ 
+                 // IRQ interface
+                 irq_ack_o         = 1'b1;
+@@ -548,6 +580,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+                       // if there is a jr stall, wait for it to be gone
+                       if ((~jr_stall_o) && (~jump_done_q)) begin
+                         pc_set_o    = 1'b1;
++`ifdef DIFT
++                        pc_set_o_tag= 1'b1;
++`endif
+                         jump_done   = 1'b1;
+                       end
+                     end
+@@ -1137,6 +1172,11 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+           pc_mux_o = PC_BRANCH;
+           pc_set_o = 1'b1;
+         end
++`ifdef DIFT
++        if (branch_taken_ex_i_tag) begin
++          pc_set_o_tag  = 1'b1;
++        end
++`endif
+ 
+         ctrl_fsm_ns = DBG_FLUSH;
+       end
+diff --git a/rtl/cv32e40p_core.sv b/rtl/cv32e40p_core.sv
+index 528ac1c..63807a4 100644
+--- a/rtl/cv32e40p_core.sv
++++ b/rtl/cv32e40p_core.sv
+@@ -97,6 +97,14 @@ module cv32e40p_core
+     // CPU Control Signals
+     input  logic fetch_enable_i,
+     output logic core_sleep_o
++`ifdef DIFT
++    ,
++    input  logic [3:0]  data_rdata_i_tag,
++    input  logic        data_gnt_i_tag,
++    input  logic        data_rvalid_i_tag,
++    output logic        data_we_o_tag,
++    output logic        data_wdata_o_tag
++`endif
+ );
+ 
+   import cv32e40p_pkg::*;
+@@ -352,12 +360,44 @@ module cv32e40p_core
+   logic [             31:0]       instr_addr_pmp;
+   logic                           instr_err_pmp;
+ 
++`ifdef DIFT
++  logic [31:0]                    tpr;
++  logic [31:0]                    tcr;
++  logic                           jump_target_id_tag;
++  logic                           jump_target_ex_tag;
++  logic                           pc_set_tag;
++  logic                           pc_id_tag;
++  logic                           regfile_alu_wdata_fw_tag;
++  logic                           regfile_alu_we_fw_tag;
++  logic                           pc_enable_tag;
++  logic                           rs1_tag;
++  logic                           exception_tag;
++  logic                           exception_ex_valid_tag;
++  logic [ALU_MODE_WIDTH-1:0]      alu_operator_mode;
++  logic                           alu_operand_a_tag;
++  logic                           alu_operand_b_tag;
++  logic                           alu_operand_c_tag;
++  logic                           data_we_ex_tag;
++  logic                           data_wdata_ex_tag;
++  logic                           data_rdata_ex_tag;
++  logic                           register_set_tag;
++  logic                           is_store_post_tag;
++  logic [5:0]                     regfile_alu_waddr_fw_tag;
++  logic [5:0]                     regfile_alu_waddr_tag;
++  logic                           store_dest_addr_tag;
++  logic                           store_source_tag;
++  logic                           use_store_ops;
++`endif
++
+   // Mux selector for vectored IRQ PC
+   assign m_exc_vec_pc_mux_id = (mtvec_mode == 2'b0) ? 5'h0 : exc_cause;
+   assign u_exc_vec_pc_mux_id = (utvec_mode == 2'b0) ? 5'h0 : exc_cause;
+ 
+   // PULP_SECURE == 0
+   assign irq_sec_i = 1'b0;
++`ifdef DIFT
++  assign exception_ex_valid_tag = exception_tag & ex_valid & !(pc_set && (pc_mux_id == PC_EXCEPTION));
++`endif
+ 
+   // APU master signals
+   assign apu_flags_o = apu_flags_ex;
+@@ -494,7 +534,16 @@ module cv32e40p_core
+ 
+       .if_busy_o   (if_busy),
+       .perf_imiss_o(perf_imiss)
+-  );
++
++`ifdef DIFT
++      ,
++      .jump_target_id_i_tag ( jump_target_id_tag ),
++      .jump_target_ex_i_tag ( jump_target_ex_tag ),
++      .pc_set_i_tag         ( pc_set_tag         ),
++      .pc_id_o_tag          ( pc_id_tag          )
++`endif
++);
++
+ 
+ 
+   /////////////////////////////////////////////////
+@@ -724,7 +773,38 @@ module cv32e40p_core
+ 
+       .perf_imiss_i(perf_imiss),
+       .mcounteren_i(mcounteren)
+-  );
++    // DIFT signals
++`ifdef DIFT
++      ,
++      .regfile_wdata_wb_i_tag       ( data_rdata_ex_tag        ),
++      .regfile_alu_wdata_fw_i_tag   ( regfile_alu_wdata_fw_tag ),
++      .regfile_alu_we_fw_i_tag      ( regfile_alu_we_fw_tag    ),
++      .regfile_alu_waddr_fw_i_tag   ( regfile_alu_waddr_fw_tag ),
++      .tpr_i                        ( tpr                      ),
++      .tcr_i                        ( tcr                      ),
++      .pc_id_i_tag                  ( pc_id_tag                ),
++      .pc_enable_i_tag              ( pc_enable_tag            ),
++      .rs1_i_tag                    ( rs1_tag                  ),
++      .exception_i_tag              ( exception_ex_valid_tag   ),
++      .jump_target_o_tag            ( jump_target_id_tag       ),
++      .pc_ex_o_tag                  (                          ),
++      .pc_set_o_tag                 ( pc_set_tag               ),
++      .alu_operator_o_mode          ( alu_operator_mode        ),
++      .store_dest_addr_ex_o_tag     ( store_dest_addr_tag      ),
++      .store_source_ex_o_tag        ( store_source_tag         ),
++      .use_store_ops_ex_o           ( use_store_ops            ),
++      .alu_operand_a_ex_o_tag       ( alu_operand_a_tag        ),
++      .alu_operand_b_ex_o_tag       ( alu_operand_b_tag        ),
++      .alu_operand_c_ex_o_tag       ( alu_operand_c_tag        ),
++      .check_s1_o_tag               ( check_s1_tag             ),
++      .check_s2_o_tag               ( check_s2_tag             ),
++      .check_d_o_tag                ( check_d_tag              ),
++      .register_set_o_tag           ( register_set_tag         ),
++      .is_store_post_o_tag          ( is_store_post_tag        ),
++      .memory_set_o_tag             ( memory_set_tag           ),
++      .regfile_alu_waddr_ex_o_tag   ( regfile_alu_waddr_tag    )
++`endif
++);
+ 
+ 
+   /////////////////////////////////////////////////////
+@@ -851,7 +931,34 @@ module cv32e40p_core
+       .ex_ready_o(ex_ready),
+       .ex_valid_o(ex_valid),
+       .wb_ready_i(lsu_ready_wb)
+-  );
++`ifdef DIFT
++      ,
++      .alu_operator_i_mode        ( alu_operator_mode            ),
++      .alu_operand_a_i_tag        ( alu_operand_a_tag            ),
++      .alu_operand_b_i_tag        ( alu_operand_b_tag            ),
++      .alu_operand_c_i_tag        ( alu_operand_c_tag            ),
++      .data_we_ex_i               ( data_we_ex                   ),
++      .check_s1_i_tag             ( check_s1_tag                 ),
++      .check_s2_i_tag             ( check_s2_tag                 ),
++      .check_d_i_tag              ( check_d_tag                  ),
++      .register_set_i_tag         ( register_set_tag             ),
++      .is_store_post_i_tag        ( is_store_post_tag            ),
++      .memory_set_i_tag           ( memory_set_tag               ),
++      .store_dest_addr_i_tag      ( store_dest_addr_tag          ),
++      .store_source_i_tag         ( store_source_tag             ),
++      .use_store_ops_i            ( use_store_ops                ),
++      .regfile_alu_waddr_i_tag    ( regfile_alu_waddr_tag        ),
++      .regfile_alu_wdata_fw_o_tag ( regfile_alu_wdata_fw_tag     ),
++      .regfile_alu_we_fw_o_tag    ( regfile_alu_we_fw_tag        ),
++      .regfile_alu_waddr_fw_o_tag ( regfile_alu_waddr_fw_tag     ),
++      .jump_target_o_tag          ( jump_target_ex_tag           ),
++      .pc_enable_o_tag            ( pc_enable_tag                ),
++      .data_wdata_ex_o_tag        ( data_wdata_ex_tag            ),
++      .data_we_ex_o_tag           ( data_we_ex_tag               ),
++      .rs1_o_tag                  ( rs1_tag                      ),
++      .exception_o_tag            ( exception_tag                )
++`endif
++);
+ 
+ 
+   ////////////////////////////////////////////////////////////////////////////////////////
+@@ -911,6 +1018,18 @@ module cv32e40p_core
+       .lsu_ready_wb_o(lsu_ready_wb),
+ 
+       .busy_o(lsu_busy)
++
++`ifdef DIFT
++      ,
++      .data_we_o_tag         ( data_we_o_tag      ),
++      .data_wdata_o_tag      ( data_wdata_o_tag   ),
++      .data_rdata_i_tag      ( data_rdata_i_tag   ),
++      .data_we_ex_i_tag      ( data_we_ex_tag     ),
++      .data_wdata_ex_i_tag   ( data_wdata_ex_tag  ),
++      .data_rdata_ex_o_tag   ( data_rdata_ex_tag  ),
++      .data_gnt_i_tag        ( data_gnt_i_tag     ),
++      .data_rvalid_i_tag     ( data_rvalid_i_tag  )
++`endif
+   );
+ 
+   // Tracer signal
+@@ -1028,7 +1147,12 @@ module cv32e40p_core
+       .apu_contention_i        (perf_apu_cont),
+       .apu_dep_i               (perf_apu_dep),
+       .apu_wb_i                (perf_apu_wb)
+-  );
++`ifdef DIFT
++      ,
++      .tpr_o                   ( tpr                                    ),
++      .tcr_o                   ( tcr                                    )
++`endif
++);
+ 
+   //  CSR access
+   assign csr_addr     = csr_addr_int;
+diff --git a/rtl/cv32e40p_cs_registers.sv b/rtl/cv32e40p_cs_registers.sv
+index 23ede79..1590e0d 100644
+--- a/rtl/cv32e40p_cs_registers.sv
++++ b/rtl/cv32e40p_cs_registers.sv
+@@ -75,6 +75,11 @@ module cv32e40p_cs_registers
+     output logic        m_irq_enable_o,
+     output logic        u_irq_enable_o,
+ 
++    `ifdef DIFT
++    output logic [31:0] tpr_o,
++    output logic [31:0] tcr_o,
++    `endif
++
+     //csr_irq_sec_i is always 0 if PULP_SECURE is zero
+     input  logic        csr_irq_sec_i,
+     output logic        sec_lvl_o,
+@@ -244,6 +249,11 @@ module cv32e40p_cs_registers
+   logic [31:0] mhpmcounter_write_upper;  // write 32 upper bits mhpmcounter_q
+   logic [31:0] mhpmcounter_write_increment;  // write increment of mhpmcounter_q
+ 
++  `ifdef DIFT
++  logic [31:0] tpr_n, tpr_q;
++  logic [31:0] tcr_n, tcr_q;
++  `endif
++
+   assign is_irq = csr_cause_i[5];
+ 
+   // mip CSR
+@@ -448,6 +458,12 @@ module cv32e40p_cs_registers
+         // current priv level (not official)
+         CSR_PRIVLV: csr_rdata_int = !COREV_PULP ? 'b0 : {30'h0, priv_lvl_q};
+ 
++        `ifdef DIFT
++        // DIFT
++        CSR_TPR: csr_rdata_int = tpr_q;
++        CSR_TCR: csr_rdata_int = tcr_q;
++        `endif
++
+         default: csr_rdata_int = '0;
+       endcase
+     end
+@@ -590,6 +606,13 @@ module cv32e40p_cs_registers
+         CSR_PRIVLV: csr_rdata_int = !COREV_PULP ? 'b0 : {30'h0, priv_lvl_q};
+         // Zfinx (not official)
+         CSR_ZFINX: csr_rdata_int = (FPU == 1 && ZFINX == 1) ? 32'h1 : 32'h0;
++
++        `ifdef DIFT
++        // DIFT
++        CSR_TPR: csr_rdata_int = tpr_q;
++        CSR_TCR: csr_rdata_int = tcr_q;
++        `endif
++
+         default: csr_rdata_int = '0;
+       endcase
+     end
+@@ -626,6 +649,11 @@ module cv32e40p_cs_registers
+ 
+       if (FPU == 1) if (fflags_we_i) fflags_n = fflags_i | fflags_q;
+ 
++      `ifdef DIFT
++      tpr_n = tpr_q;
++      tcr_n = tcr_q;
++      `endif
++
+       case (csr_addr_i)
+         // fcsr: Floating-Point Control and Status Register (frm, fflags, fprec).
+         CSR_FFLAGS: if (csr_we_int) fflags_n = (FPU == 1) ? csr_wdata_int[C_FFLAG-1:0] : '0;
+@@ -738,6 +766,12 @@ module cv32e40p_cs_registers
+           pmpaddr_we[csr_addr_i[3:0]] = 1'b1;
+         end
+ 
++        `ifdef DIFT
++        // DIFT
++        CSR_TPR: if (csr_we_int) tpr_n = csr_wdata_int;
++        CSR_TCR: if (csr_we_int) tcr_n = csr_wdata_int;
++        `endif
++
+ 
+         /* USER CSR */
+         // ucause: exception cause
+@@ -765,6 +799,7 @@ module cv32e40p_cs_registers
+         end
+         // ucause: exception cause
+         CSR_UCAUSE: if (csr_we_int) ucause_n = {csr_wdata_int[31], csr_wdata_int[4:0]};
++
+       endcase
+ 
+       // exception controller gets priority over other writes
+@@ -909,6 +944,12 @@ module cv32e40p_cs_registers
+       mtvec_mode_n = mtvec_mode_q;
+       utvec_mode_n = '0;  // Not used if PULP_SECURE == 0
+ 
++      `ifdef DIFT
++      // DIFT
++      tpr_n = tpr_q;
++      tcr_n = tcr_q;
++      `endif
++
+       case (csr_addr_i)
+         // fcsr: Floating-Point Control and Status Register (frm, fflags, fprec).
+         CSR_FFLAGS:
+@@ -1013,6 +1054,12 @@ module cv32e40p_cs_registers
+           dscratch1_n = csr_wdata_int;
+         end
+ 
++        `ifdef DIFT
++        // DIFT
++        CSR_TPR: if (csr_we_int) tpr_n = csr_wdata_int;
++        CSR_TCR: if (csr_we_int) tcr_n = csr_wdata_int;
++        `endif
++
+       endcase
+ 
+       if (FPU == 1) begin
+@@ -1120,6 +1167,11 @@ module cv32e40p_cs_registers
+   assign debug_ebreakm_o = dcsr_q.ebreakm;
+   assign debug_ebreaku_o = dcsr_q.ebreaku;
+ 
++  `ifdef DIFT
++  assign tpr_o = tpr_q;
++  assign tcr_o = tcr_q;
++  `endif
++
+   generate
+     if (PULP_SECURE == 1) begin : gen_pmp_user
+ 
+@@ -1199,6 +1251,12 @@ module cv32e40p_cs_registers
+       mie_q <= '0;
+       mtvec_q <= '0;
+       mtvec_mode_q <= MTVEC_MODE;
++
++      `ifdef DIFT
++      tpr_q <= 32'b00000000000000001010100010100010; // 32'h00A8A2;
++      tcr_q <= 32'b00000000001000000000000000011000; // 32'h00200018;
++      `endif
++
+     end else begin
+       // update CSRs
+       if (FPU == 1) begin
+@@ -1230,6 +1288,10 @@ module cv32e40p_cs_registers
+       mie_q        <= mie_n;
+       mtvec_q      <= mtvec_n;
+       mtvec_mode_q <= mtvec_mode_n;
++`ifdef DIFT
++      tpr_q        <= tpr_n;
++      tcr_q        <= tcr_n;
++`endif
+     end
+   end
+   ////////////////////////////////////////////////////////////////////////
+diff --git a/rtl/cv32e40p_decoder.sv b/rtl/cv32e40p_decoder.sv
+index d03027b..57d7f92 100644
+--- a/rtl/cv32e40p_decoder.sv
++++ b/rtl/cv32e40p_decoder.sv
+@@ -362,13 +362,12 @@ module cv32e40p_decoder
+ 
+       OPCODE_STORE: begin
+         data_req           = 1'b1;
+-        data_we_o          = 1'b1;
+         rega_used_o        = 1'b1;
+         regb_used_o        = 1'b1;
+         alu_operator_o     = ALU_ADD;
+         // pass write data through ALU operand c
+         alu_op_c_mux_sel_o = OP_C_REGB_OR_FWD;
+-        // offset from immediate
++        // offset from immediateo
+         imm_b_mux_sel_o    = IMMB_S;
+         alu_op_b_mux_sel_o = OP_B_IMM;
+ 
+@@ -377,12 +376,27 @@ module cv32e40p_decoder
+           3'b000 : data_type_o = 2'b10; // SB
+           3'b001 : data_type_o = 2'b01; // SH
+           3'b010 : data_type_o = 2'b00; // SW
+-          default: begin
++`ifdef DIFT
++          3'b111 : data_type_o = 2'b00; // DIFT tag-only store: p.spsw (word)
++          3'b110 : data_type_o = 2'b01; // DIFT tag-only store: p.spsh (halfword)
++          3'b101 : data_type_o = 2'b10; // DIFT tag-only store: p.spsb (byte)
++`endif
++        default: begin
+             illegal_insn_o = 1'b1;
+             data_req       = 1'b0;
+             data_we_o      = 1'b0;
+           end
+         endcase
++// Active data_we_o only for real stores, not DIFT tag-only instructions
++`ifdef DIFT
++  if (instr_rdata_i[14:12] != 3'b111 &&
++      instr_rdata_i[14:12] != 3'b110 &&
++      instr_rdata_i[14:12] != 3'b101) begin
++    data_we_o = 1'b1;
++  end
++`else
++  data_we_o = 1'b1;
++`endif
+       end
+ 
+       OPCODE_LOAD: begin
+@@ -2960,6 +2974,11 @@ module cv32e40p_decoder
+                 end else begin
+                   csr_status_o = 1'b1;
+                 end
++            `ifdef DIFT
++            // DIFT - Dynamic Information Flow Tracking
++            CSR_TPR, CSR_TCR :
++              ; // Valid CSR, no special handling needed
++            `endif
+ 
+             default : csr_illegal = 1'b1;
+ 
+diff --git a/rtl/cv32e40p_ex_stage.sv b/rtl/cv32e40p_ex_stage.sv
+index 6b58a84..b21951d 100644
+--- a/rtl/cv32e40p_ex_stage.sv
++++ b/rtl/cv32e40p_ex_stage.sv
+@@ -150,6 +150,43 @@ module cv32e40p_ex_stage
+     output logic ex_ready_o,  // EX stage ready for new data
+     output logic ex_valid_o,  // EX stage gets new data
+     input  logic wb_ready_i  // WB stage ready for new data
++`ifdef DIFT
++  ,
++    // === ENTRÉES TAG DEPUIS ID STAGE ===
++    input  logic [ALU_MODE_WIDTH-1:0] alu_operator_i_mode,  // Mode de propagation TPR
++    input  logic        alu_operand_a_i_tag,
++    input  logic        alu_operand_b_i_tag,
++    input  logic        alu_operand_c_i_tag,
++    input  logic        data_we_ex_i,                       // Write enable data memory
++    // === TAG CHECK CONTROL (depuis TCR) ===
++    input  logic        check_s1_i_tag,
++    input  logic        check_s2_i_tag,
++    input  logic        check_d_i_tag,
++    // === TAG PROPAGATION POLICY (depuis TPR) ===
++    input  logic        register_set_i_tag,                 // Force register tag = 1
++    input  logic        memory_set_i_tag,                   // Force memory tag = 1
++    input  logic        is_store_post_i_tag,
++    // === ADRESSES DE REGISTRES ===
++    input  logic [5:0]  regfile_alu_waddr_i_tag,           // Adresse registre destination
++    // === TAGS POUR STORE ===
++    input  logic        store_dest_addr_i_tag,             // Tag adresse destination du store
++    input  logic        store_source_i_tag,                // Tag source du store
++    input  logic        use_store_ops_i,
++    // === FORWARDING DES TAGS VERS ID STAGE ===
++    output logic        regfile_alu_wdata_fw_o_tag,        // Tag de la donnée à écrire (forwarding)
++    output logic        regfile_alu_we_fw_o_tag,           // Tag du write enable (forwarding)
++    output logic [5:0]  regfile_alu_waddr_fw_o_tag,        // Tag de l'adresse du registre à écrire (forwarding)
++    // === PC TAG CONTROL ===
++    output logic        jump_target_o_tag,                 // Tag de la cible de saut
++    output logic        pc_enable_o_tag,                   // Enable pour mise à jour PC tag
++    // === VERS LSU (Load/Store Unit) ===
++    output logic        data_wdata_ex_o_tag,               // Tag de la donnée à écrire en mémoire
++    output logic        data_we_ex_o_tag,                  // Tag du write enable mémoire
++    // === VERS ID STAGE (pour checks) ===
++    output logic        rs1_o_tag,
++    // === EXCEPTION DIFT ===
++    output logic        exception_o_tag
++`endif
+ );
+ 
+   logic [31:0] alu_result;
+@@ -176,6 +213,14 @@ module cv32e40p_ex_stage
+   logic        apu_req;
+   logic        apu_gnt;
+ 
++`ifdef DIFT
++  logic        alu_result_tag;
++  logic        rf_enable_tag;
++  logic        pc_enable_tag;
++  logic        check_a;
++  logic        check_b;
++`endif
++
+   // ALU write port mux
+   always_comb begin
+     regfile_alu_wdata_fw_o = '0;
+@@ -225,7 +270,57 @@ module cv32e40p_ex_stage
+   assign branch_decision_o = alu_cmp_result;
+   assign jump_target_o     = alu_operand_c_i;
+ 
++`ifdef DIFT
++  // Register instruction except Load
++  always_comb begin
++    if (register_set_i_tag) begin
++      // Si on veut forcer le tag à 1
++      regfile_alu_wdata_fw_o_tag = 1'b1;
++      regfile_alu_we_fw_o_tag    = 1'b1;
++    end else begin
++      // Propagation normale du tag depuis l'ALU
++      regfile_alu_wdata_fw_o_tag = alu_result_tag;
++      regfile_alu_we_fw_o_tag    = rf_enable_tag & regfile_alu_we_i & ~(is_store_post_i_tag);
++    end
++  end
++  assign regfile_alu_waddr_fw_o_tag = regfile_alu_waddr_i_tag;
++
++  // Store
++  always_comb begin
++    if (memory_set_i_tag) begin
++      // Forcer le tag mémoire
++      data_wdata_ex_o_tag        = 1'b1;  // M[RS1+offset]: destination tag
++      data_we_ex_o_tag           = 1'b1;
++    end else begin
++      // Propagation du tag calculé
++      data_wdata_ex_o_tag        = alu_result_tag;  // M[RS1+offset]: destination tag
++      data_we_ex_o_tag           = data_we_ex_i & rf_enable_tag;
++    end
++  end
+ 
++  // Branch
++  // if (branch is not taken)
++  //   old PC tag is not updated;
++  // else
++  //   if (old PC tag is equal to 1)
++  //     new PC tag is equal to 1;
++  //   else
++  //     new PC tag is the result of the policy applied on the source operands;
++  always_comb
++  begin
++    if (~alu_cmp_result) begin
++      pc_enable_o_tag = 1'b0;
++    end else begin
++      if (alu_operand_c_i_tag) begin
++        pc_enable_o_tag   = 1'b1;
++        jump_target_o_tag = alu_operand_c_i_tag;
++      end else begin
++        pc_enable_o_tag   = pc_enable_tag;
++        jump_target_o_tag = alu_result_tag;
++      end
++    end
++  end
++`endif
+   ////////////////////////////
+   //     _    _    _   _    //
+   //    / \  | |  | | | |   //
+@@ -260,7 +355,43 @@ module cv32e40p_ex_stage
+       .ex_ready_i(ex_ready_o)
+   );
+ 
+-
++  ////////////////////////////////////////////////////////
++  //  ____ ___ _____ _____   _     ___   ____ ___ ____  //
++  // |  _ \_ _|  ___|_   _| | |   / _ \ / ___|_ _/ ___| //
++  // | | | | || |_    | |   | |  | | | | |  _ | | |     //
++  // | |_| | ||  _|   | |   | |__| |_| | |_| || | |___  //
++  // |____/___|_|     |_|   |_____\___/ \____|___\____| //
++  //                                                    //
++  ////////////////////////////////////////////////////////
++
++`ifdef DIFT
++  tag_propagation_logic tag_propagation_logic_i
++  (
++    .operator_i           ( alu_operator_i_mode     ),
++    .operand_a_i          ( alu_operand_a_i_tag     ),
++    .operand_b_i          ( alu_operand_b_i_tag     ),
++    .result_o             ( alu_result_tag          ),
++    .rf_enable_tag        ( rf_enable_tag           ),
++    .pc_enable_tag        ( pc_enable_tag           )
++  );
++`endif
++
++`ifdef DIFT
++  assign check_a = use_store_ops_i ? store_dest_addr_i_tag : alu_operand_a_i_tag;
++  assign check_b = use_store_ops_i ? store_source_i_tag : alu_operand_b_i_tag;
++
++  tag_check_logic tag_check_logic_i
++  (
++    .operand_a_i          ( check_a                 ),
++    .operand_b_i          ( check_b                 ),
++    .result_i             ( alu_result_tag          ),
++    .check_s1_i           ( check_s1_i_tag          ),
++    .check_s2_i           ( check_s2_i_tag          ),
++    .check_d_i            ( check_d_i_tag           ),
++    .is_load_i            ( regfile_we_i            ),
++    .exception_o          ( exception_o_tag         )
++  );
++`endif
+   ////////////////////////////////////////////////////////////////
+   //  __  __ _   _ _   _____ ___ ____  _     ___ _____ ____     //
+   // |  \/  | | | | | |_   _|_ _|  _ \| |   |_ _| ____|  _ \    //
+@@ -406,6 +537,25 @@ module cv32e40p_ex_stage
+     end
+   end
+ 
++`ifdef DIFT
++  // Load
++  always_ff @(posedge clk, negedge rst_n) begin
++    if (~rst_n)
++    begin
++      rs1_o_tag            <= 1'b0;
++    end
++    else
++    begin
++      if (ex_valid_o)
++      begin
++        if (regfile_we_i) begin
++          rs1_o_tag        <= alu_operand_a_i_tag;
++        end
++      end
++    end
++  end
++`endif
++
+   // As valid always goes to the right and ready to the left, and we are able
+   // to finish branches without going to the WB stage, ex_valid does not
+   // depend on ex_ready.
+diff --git a/rtl/cv32e40p_id_stage.sv b/rtl/cv32e40p_id_stage.sv
+index 0f54e31..6acb6f6 100644
+--- a/rtl/cv32e40p_id_stage.sv
++++ b/rtl/cv32e40p_id_stage.sv
+@@ -248,6 +248,38 @@ module cv32e40p_id_stage
+ 
+     input logic        perf_imiss_i,
+     input logic [31:0] mcounteren_i
++
++    // DIFT signals
++`ifdef DIFT
++    ,
++    input  logic        regfile_wdata_wb_i_tag,            // From WB stage
++    input  logic        regfile_alu_wdata_fw_i_tag,        // From tags ALU (EX stage)
++    input  logic        regfile_alu_we_fw_i_tag,           // From tags ALU (EX stage) write enable
++    input  logic [5:0]  regfile_alu_waddr_fw_i_tag,        // From EX stage write address
++    input  logic [31:0] tpr_i,                             // From CRS
++    input  logic [31:0] tcr_i,                             // From CRS
++    input  logic        pc_id_i_tag,                       // From IF : pc tag
++    input  logic        pc_enable_i_tag,                   // From EX : pc enable tag
++    input  logic        rs1_i_tag,                         // From EX : rs1 tag
++    input  logic        exception_i_tag,                   // From EX : exception de EX
++    output logic        jump_target_o_tag,                 // To IF   : jump target tag
++    output logic        pc_ex_o_tag,                       // To CSR
++    output logic        pc_set_o_tag,                      // To IF   : enable PC tag → IF
++    output logic [ALU_MODE_WIDTH-1:0] alu_operator_o_mode, // To EX   : mode de propagation → EX
++    output logic        store_dest_addr_ex_o_tag,          // To EX
++    output logic        store_source_ex_o_tag,             // To EX
++    output logic        use_store_ops_ex_o,                // To EX
++    output logic        alu_operand_a_ex_o_tag,            // To EX   : tags des operands → EX
++    output logic        alu_operand_b_ex_o_tag,            // To EX
++    output logic        alu_operand_c_ex_o_tag,            // To EX
++    output logic [5:0]  regfile_alu_waddr_ex_o_tag,        // To EX
++    output logic        check_s1_o_tag,                    // To EX
++    output logic        check_s2_o_tag,                    // To EX
++    output logic        check_d_o_tag,                     // To EX
++    output logic        register_set_o_tag,                // To EX
++    output logic        is_store_post_o_tag,               // To EX
++    output logic        memory_set_o_tag                   // To EX
++`endif
+ );
+ 
+   // Source/Destination register instruction index
+@@ -346,6 +378,35 @@ module cv32e40p_id_stage
+   logic [31:0] regfile_data_rb_id;
+   logic [31:0] regfile_data_rc_id;
+ 
++ `ifdef DIFT
++  logic        regfile_data_ra_id_tag;
++  logic        regfile_data_rb_id_tag;
++  logic        regfile_data_rc_id_tag;
++  logic        alu_operand_a_tag;
++  logic        alu_operand_b_tag;
++  logic        alu_operand_c_tag;
++  logic        operand_a_fw_id_tag;
++  logic        operand_b_fw_id_tag;
++  logic        operand_c_fw_id_tag;
++  logic        operand_b_tag;
++  logic        jump_target_tag;
++  logic [ALU_MODE_WIDTH-1:0] alu_operator_mode;
++  logic        is_store;
++  logic        enable_a;
++  logic        enable_b;
++  logic        branch_taken_ex_tag;
++  logic        regfile_dest_tag;
++  logic        regfile_enable_tag;
++  logic        check_s1_tag;
++  logic        check_s2_tag;
++  logic        check_d_tag;
++  logic        execute_pc_tag;
++  logic        exception_tag;
++  logic        register_set_tag;
++  logic        is_store_post_tag;
++  logic        memory_set_tag;
++ `endif
++
+   // ALU Control
+   logic alu_en;
+   alu_opcode_e alu_operator;
+@@ -553,6 +614,10 @@ module cv32e40p_id_stage
+ 
+   assign branch_taken_ex = branch_in_ex_o && branch_decision_i;
+ 
++`ifdef DIFT
++  assign branch_taken_ex_tag = branch_in_ex_o && pc_enable_i_tag;
++`endif
++
+ 
+   assign mult_en = mult_int_en | mult_dot_en;
+ 
+@@ -579,6 +644,19 @@ module cv32e40p_id_stage
+ 
+   assign jump_target_o = jump_target;
+ 
++`ifdef DIFT
++  always_comb begin : jump_target_mux_tag
++    unique case (ctrl_transfer_target_mux_sel)
++      JT_JAL:  jump_target_tag = pc_id_i_tag;
++      JT_COND: jump_target_tag = pc_id_i_tag;
++      JT_JALR: jump_target_tag = operand_a_fw_id_tag;
++      default: jump_target_tag = operand_a_fw_id_tag;
++    endcase
++  end
++
++  assign jump_target_o_tag = jump_target_tag; // To IF
++`endif
++
+ 
+   ////////////////////////////////////////////////////////
+   //   ___                                 _      _     //
+@@ -591,12 +669,12 @@ module cv32e40p_id_stage
+ 
+   // ALU_Op_a Mux
+   always_comb begin : alu_operand_a_mux
+-    case (alu_op_a_mux_sel)
+-      OP_A_REGA_OR_FWD: alu_operand_a = operand_a_fw_id;
+-      OP_A_REGB_OR_FWD: alu_operand_a = operand_b_fw_id;
+-      OP_A_REGC_OR_FWD: alu_operand_a = operand_c_fw_id;
+-      OP_A_CURRPC:      alu_operand_a = pc_id_i;
+-      OP_A_IMM:         alu_operand_a = imm_a;
++    case (alu_op_a_mux_sel)                                   //  Signal du DECODER
++      OP_A_REGA_OR_FWD: alu_operand_a = operand_a_fw_id;      // RS1
++      OP_A_REGB_OR_FWD: alu_operand_a = operand_b_fw_id;      // RS2
++      OP_A_REGC_OR_FWD: alu_operand_a = operand_c_fw_id;      // RS3
++      OP_A_CURRPC:      alu_operand_a = pc_id_i;              // PC
++      OP_A_IMM:         alu_operand_a = imm_a;                // Immediate
+       default:          alu_operand_a = operand_a_fw_id;
+     endcase
+     ;  // case (alu_op_a_mux_sel)
+@@ -611,15 +689,38 @@ module cv32e40p_id_stage
+ 
+   // Operand a forwarding mux
+   always_comb begin : operand_a_fw_mux
+-    case (operand_a_fw_mux_sel)
+-      SEL_FW_EX:   operand_a_fw_id = regfile_alu_wdata_fw_i;
+-      SEL_FW_WB:   operand_a_fw_id = regfile_wdata_wb_i;
+-      SEL_REGFILE: operand_a_fw_id = regfile_data_ra_id;
++    case (operand_a_fw_mux_sel)                               //  Signal du CONTROLLER
++      SEL_FW_EX:   operand_a_fw_id = regfile_alu_wdata_fw_i;  // Forward EX
++      SEL_FW_WB:   operand_a_fw_id = regfile_wdata_wb_i;      // Forward WB
++      SEL_REGFILE: operand_a_fw_id = regfile_data_ra_id;      // From regfile
+       default:     operand_a_fw_id = regfile_data_ra_id;
+     endcase
+     ;  // case (operand_a_fw_mux_sel)
+   end
+ 
++`ifdef DIFT
++    // ALU_Op_a Mux
++    always_comb begin : alu_operand_a_mux_tag
++      case (alu_op_a_mux_sel)
++        OP_A_REGA_OR_FWD:  alu_operand_a_tag = operand_a_fw_id_tag;     // RS1 tag
++        OP_A_REGB_OR_FWD:  alu_operand_a_tag = operand_b_fw_id_tag;     // RS2 tag
++        OP_A_CURRPC:       alu_operand_a_tag = pc_id_i_tag;             // PC tag
++        OP_A_IMM:          alu_operand_a_tag = 1'b0;                    // Immediate has no tag
++        default:            alu_operand_a_tag = operand_a_fw_id_tag;
++      endcase;
++    end
++
++    // Operand a forwarding mux
++    always_comb begin : operand_a_fw_mux_tag
++      case (operand_a_fw_mux_sel)                                         // Signal du CONTROLLER
++        SEL_FW_EX:    operand_a_fw_id_tag = regfile_alu_wdata_fw_i_tag;   // Forward EX
++        SEL_FW_WB:    operand_a_fw_id_tag = regfile_wdata_wb_i_tag;       // Forward WB
++        SEL_REGFILE:  operand_a_fw_id_tag = regfile_data_ra_id_tag;       // From regfile
++        default:       operand_a_fw_id_tag = regfile_data_ra_id_tag;
++      endcase;
++    end
++`endif
++
+   //////////////////////////////////////////////////////
+   //   ___                                 _   ____   //
+   //  / _ \ _ __   ___ _ __ __ _ _ __   __| | | __ )  //
+@@ -649,12 +750,12 @@ module cv32e40p_id_stage
+ 
+   // ALU_Op_b Mux
+   always_comb begin : alu_operand_b_mux
+-    case (alu_op_b_mux_sel)
+-      OP_B_REGA_OR_FWD: operand_b = operand_a_fw_id;
+-      OP_B_REGB_OR_FWD: operand_b = operand_b_fw_id;
+-      OP_B_REGC_OR_FWD: operand_b = operand_c_fw_id;
+-      OP_B_IMM:         operand_b = imm_b;
+-      OP_B_BMASK:       operand_b = $unsigned(operand_b_fw_id[4:0]);
++    case (alu_op_b_mux_sel)                                           //  Signal du DECODER
++      OP_B_REGA_OR_FWD: operand_b = operand_a_fw_id;                  // RS1
++      OP_B_REGB_OR_FWD: operand_b = operand_b_fw_id;                  // RS2
++      OP_B_REGC_OR_FWD: operand_b = operand_c_fw_id;                  // RS3
++      OP_B_IMM:         operand_b = imm_b;                            // Immediate
++      OP_B_BMASK:       operand_b = $unsigned(operand_b_fw_id[4:0]);  // bitmask operations
+       default:          operand_b = operand_b_fw_id;
+     endcase  // case (alu_op_b_mux_sel)
+   end
+@@ -677,15 +778,53 @@ module cv32e40p_id_stage
+ 
+   // Operand b forwarding mux
+   always_comb begin : operand_b_fw_mux
+-    case (operand_b_fw_mux_sel)
+-      SEL_FW_EX:   operand_b_fw_id = regfile_alu_wdata_fw_i;
+-      SEL_FW_WB:   operand_b_fw_id = regfile_wdata_wb_i;
+-      SEL_REGFILE: operand_b_fw_id = regfile_data_rb_id;
++    case (operand_b_fw_mux_sel)                               //  Signal du CONTROLLER
++      SEL_FW_EX:   operand_b_fw_id = regfile_alu_wdata_fw_i;  // Forward EX
++      SEL_FW_WB:   operand_b_fw_id = regfile_wdata_wb_i;      // Forward WB
++      SEL_REGFILE: operand_b_fw_id = regfile_data_rb_id;      // From regfile
+       default:     operand_b_fw_id = regfile_data_rb_id;
+     endcase
+     ;  // case (operand_b_fw_mux_sel)
+   end
+ 
++`ifdef DIFT
++  // ALU_Op_b Mux
++  always_comb begin : alu_operand_b_mux_tag
++    case (alu_op_b_mux_sel)                                      //  Signal du DECODER
++      OP_B_REGB_OR_FWD:  operand_b_tag = operand_b_fw_id_tag;    // RS2 tag
++      OP_B_REGC_OR_FWD:  operand_b_tag = operand_c_fw_id_tag;    // RS3 tag
++      OP_B_IMM:          operand_b_tag = 1'b0;                   // Immediate has no tag
++      default:            operand_b_tag = operand_b_fw_id_tag;
++    endcase // case (alu_op_b_mux_sel)
++  end
++
++    /* scalar replication for operand B and shuffle type
++    always_comb
++    begin
++      if (alu_vec_mode == VEC_MODE8) begin
++        operand_b_vec    = {4{operand_b[7:0]}};
++        imm_shuffle_type = imm_shuffleb_type;
++      end else begin
++        operand_b_vec    = {2{operand_b[15:0]}};
++        imm_shuffle_type = imm_shuffleh_type;
++      end
++    end*/
++
++    // choose normal or scalar replicated version of operand b
++    // assign alu_operand_b = (scalar_replication == 1'b1) ? operand_b_vec : operand_b;
++  assign alu_operand_b_tag = operand_b_tag;
++
++    // Operand b forwarding mux
++  always_comb begin : operand_b_fw_mux_tag
++    case (operand_b_fw_mux_sel)
++      SEL_FW_EX:    operand_b_fw_id_tag = regfile_alu_wdata_fw_i_tag;
++      SEL_FW_WB:    operand_b_fw_id_tag = regfile_wdata_wb_i_tag;
++      SEL_REGFILE:  operand_b_fw_id_tag = regfile_data_rb_id_tag;
++      default:       operand_b_fw_id_tag = regfile_data_rb_id_tag;
++    endcase; // case (operand_b_fw_mux_sel)
++  end
++`endif
++
+ 
+   //////////////////////////////////////////////////////
+   //   ___                                 _    ____  //
+@@ -698,10 +837,10 @@ module cv32e40p_id_stage
+ 
+   // ALU OP C Mux
+   always_comb begin : alu_operand_c_mux
+-    case (alu_op_c_mux_sel)
+-      OP_C_REGC_OR_FWD: operand_c = operand_c_fw_id;
+-      OP_C_REGB_OR_FWD: operand_c = operand_b_fw_id;
+-      OP_C_JT:          operand_c = jump_target;
++    case (alu_op_c_mux_sel)                                     //  Signal du DECODER
++      OP_C_REGC_OR_FWD: operand_c = operand_c_fw_id;            // RS3
++      OP_C_REGB_OR_FWD: operand_c = operand_b_fw_id;            // RS2
++      OP_C_JT:          operand_c = jump_target;                // used for JALR
+       default:          operand_c = operand_c_fw_id;
+     endcase  // case (alu_op_c_mux_sel)
+   end
+@@ -722,15 +861,36 @@ module cv32e40p_id_stage
+ 
+   // Operand c forwarding mux
+   always_comb begin : operand_c_fw_mux
+-    case (operand_c_fw_mux_sel)
+-      SEL_FW_EX:   operand_c_fw_id = regfile_alu_wdata_fw_i;
+-      SEL_FW_WB:   operand_c_fw_id = regfile_wdata_wb_i;
+-      SEL_REGFILE: operand_c_fw_id = regfile_data_rc_id;
++    case (operand_c_fw_mux_sel)                                  //  Signal du CONTROLLER
++      SEL_FW_EX:   operand_c_fw_id = regfile_alu_wdata_fw_i;     // Forward EX
++      SEL_FW_WB:   operand_c_fw_id = regfile_wdata_wb_i;         // Forward WB
++      SEL_REGFILE: operand_c_fw_id = regfile_data_rc_id;         // From regfile
+       default:     operand_c_fw_id = regfile_data_rc_id;
+     endcase
+     ;  // case (operand_c_fw_mux_sel)
+   end
+ 
++`ifdef DIFT
++  // ALU OP C Mux
++  always_comb begin : alu_operand_c_mux_tag
++    case (alu_op_c_mux_sel)
++      OP_C_REGC_OR_FWD:  alu_operand_c_tag = operand_c_fw_id_tag;
++      OP_C_REGB_OR_FWD:  alu_operand_c_tag = operand_b_fw_id_tag;
++      OP_C_JT:           alu_operand_c_tag = jump_target_tag;       // To EX
++      default:           alu_operand_c_tag = operand_c_fw_id_tag;
++    endcase // case (alu_op_c_mux_sel)
++  end
++
++  // Operand c forwarding mux
++  always_comb begin : operand_c_fw_mux_tag
++    case (operand_c_fw_mux_sel)
++      SEL_FW_EX:    operand_c_fw_id_tag = regfile_alu_wdata_fw_i_tag;
++      SEL_FW_WB:    operand_c_fw_id_tag = regfile_wdata_wb_i_tag;
++      SEL_REGFILE:  operand_c_fw_id_tag = regfile_data_rc_id_tag;
++      default:      operand_c_fw_id_tag = regfile_data_rc_id_tag;
++    endcase; // case (operand_c_fw_mux_sel)
++  end
++`endif
+ 
+   ///////////////////////////////////////////////////////////////////////////
+   //  ___                              _ _       _              ___ ____   //
+@@ -933,6 +1093,180 @@ module cv32e40p_id_stage
+       .we_b_i   (regfile_alu_we_fw_i)
+   );
+ 
++  //////////////////////////////////////////////////////////////////////////////////
++  //  ____  _____ ____ ___ ____ _____ _____ ____  ____    _____  _    ____ ____   //
++  // |  _ \| ____/ ___|_ _/ ___|_   _| ____|  _ \/ ___|  |_   _|/ \  / ___/ ___|  //
++  // | |_) |  _|| |  _ | |\___ \ | | |  _| | |_) \___ \    | | / _ \| |  _\___ \  //
++  // |  _ <| |__| |_| || | ___) || | | |___|  _ < ___) |   | |/ ___ \ |_| |___) | //
++  // |_| \_\_____\____|___|____/ |_| |_____|_| \_\____/    |_/_/   \_\____|____/  //
++  //                                                                              //
++  //////////////////////////////////////////////////////////////////////////////////
++
++`ifdef DIFT
++cv32e40p_register_file_tag_ff registers_tag_i
++(
++    .clk          ( clk                ),
++    .rst_n        ( rst_n              ),
++
++    .test_en_i    ( test_en_i          ),
++
++    // Read port a
++    .raddr_a_i    ( regfile_addr_ra_id ),
++    .rdata_a_o    ( regfile_data_ra_id_tag ),
++
++    // Read port b
++    .raddr_b_i    ( regfile_addr_rb_id ),
++    .rdata_b_o    ( regfile_data_rb_id_tag ),
++
++    // Read port c
++    .raddr_c_i    ( regfile_addr_rc_id ),
++    .rdata_c_o    ( regfile_data_rc_id_tag ),
++
++    // Write port a
++    .waddr_a_i    ( regfile_waddr_wb_i ),
++    .wdata_a_i    ( regfile_dest_tag   ),
++    .we_a_i       ( regfile_enable_tag ),
++
++    // Write port b
++    .waddr_b_i    ( regfile_alu_waddr_fw_i_tag ),
++    .wdata_b_i    ( regfile_alu_wdata_fw_i_tag ),
++    .we_b_i       ( regfile_alu_we_fw_i_tag )
++  );
++  `endif
++
++  ////////////////////////////////////////////////////////////////////////////
++  //   __  __  ___  ____  _____   ____  _____ ____ ___  ____  _____ ____    //
++  //  |  \/  |/ _ \|  _ \| ____| |  _ \| ____/ ___/ _ \|  _ \| ____|  _ \   //
++  //  | |\/| | | | | | | |  _|   | | | |  _|| |  | | | | | | |  _| | |_) |  //
++  //  | |  | | |_| | |_| | |___  | |_| | |__| |__| |_| | |_| | |___|  _ <   //
++  //  |_|  |_|\___/|____/|_____| |____/|_____\____\___/|____/|_____|_| \_\  //
++  //                                                                        //
++  ////////////////////////////////////////////////////////////////////////////
++
++`ifdef DIFT
++  mode_tag mode_i_tag
++  (
++    //inputs
++    .instr_rdata_i                   ( instr                     ),
++    .tpr_i                           ( tpr_i                     ),
++
++    // outputs
++    //jump/branches
++    .alu_operator_o_mode             ( alu_operator_mode         ),
++    .register_set_o                  ( register_set_tag          ),
++    .is_store_post_o                 ( is_store_post_tag         ),
++    .memory_set_o                    ( memory_set_tag            )
++  );
++`endif
++
++  /////////////////////////////////////////////////
++  //   _____ _   _    _    ____  _     _____     //
++  //  | ____| \ | |  / \  | __ )| |   | ____|    //
++  //  |  _| |  \| | / _ \ |  _ \| |   |  _|      //
++  //  | |___| |\  |/ ___ \| |_) | |___| |___     //
++  //  |_____|_| \_/_/   \_\____/|_____|_____|    //
++  //                                             //
++  //   ____  _____ ____ ___  ____  _____ ____    //
++  //  |  _ \| ____/ ___/ _ \|  _ \| ____|  _ \   //
++  //  | | | |  _|| |  | | | | | | |  _| | |_) |  //
++  //  | |_| | |__| |__| |_| | |_| | |___|  _ <   //
++  //  |____/|_____\____\___/|____/|_____|_| \_\  //
++  //                                             //
++  /////////////////////////////////////////////////
++
++`ifdef DIFT
++  enable_tag enable_i_tag
++  (
++    //inputs
++    .instr_rdata_i                   ( instr                     ),
++    .tpr_i                           ( tpr_i                     ),
++    //outputs
++    .is_store_o                      ( is_store                  ),
++    .enable_a_o                      ( enable_a                  ),
++    .enable_b_o                      ( enable_b                  )
++  );
++`endif
++
++  ///////////////////////////////////////////////////////////////////////
++  //   _     ___    _    ____                                          //
++  //  | |   / _ \  / \  |  _ \                                         //
++  //  | |  | | | |/ _ \ | | | |                                        //
++  //  | |__| |_| / ___ \| |_| |                                        //
++  //  |_____\___/_/   \_\____/                                         //
++  //                                                                   //
++  //  ____  ____   ___  ____   _    ____    _  _____ ___ ___  _   _    //
++  //  |  _ \|  _ \ / _ \|  _ \ / \  / ___|  / \|_   _|_ _/ _ \| \ | |  //
++  //  | |_) | |_) | | | | |_) / _ \| |  _  / _ \ | |  | | | | |  \| |  //
++  //  |  __/|  _ <| |_| |  __/ ___ \ |_| |/ ___ \| |  | | |_| | |\  |  //
++  //  |_|   |_| \_\\___/|_| /_/   \_\____/_/   \_\_| |___\___/|_| \_|  //
++  //                                                                   //
++  ///////////////////////////////////////////////////////////////////////
++
++`ifdef DIFT
++  load_propagation load_i_propagation
++  (
++    //inputs
++    .regfile_wdata_wb_i_tag          ( regfile_wdata_wb_i_tag    ),
++    .rs1_i_tag                       ( rs1_i_tag                 ),
++    .regfile_we_wb_i                 ( regfile_we_wb_i           ),
++    .tpr_i                           ( tpr_i                     ),
++    //outputs
++    .regfile_dest_tag                ( regfile_dest_tag          ),
++    .regfile_enable_tag              ( regfile_enable_tag        )
++  );
++`endif
++
++  ///////////////////////////////////////////////////////////////
++  //   _     ___    _    ____     ____ _   _ _____ ____ _  __  //
++  //  | |   / _ \  / \  |  _ \   / ___| | | | ____/ ___| |/ /  //
++  //  | |  | | | |/ _ \ | | | | | |   | |_| |  _|| |   | ' /   //
++  //  | |__| |_| / ___ \| |_| | | |___|  _  | |__| |___| . \   //
++  //  |_____\___/_/   \_\____/   \____|_| |_|_____\____|_|\_\  //
++  //                                                           //
++  ///////////////////////////////////////////////////////////////
++
++`ifdef DIFT
++  load_check load_i_check
++  (
++    //inputs
++    .regfile_wdata_wb_i_tag          ( regfile_wdata_wb_i_tag    ),
++    .rs1_i_tag                       ( rs1_i_tag                 ),
++    .regfile_dest_tag                ( regfile_dest_tag          ),
++    .tcr_i                           ( tcr_i                     ),
++    .regfile_we_wb_i                 ( regfile_we_wb_i           ),
++    //output
++    .exception_o                     ( exception_tag             )
++  );
++`endif
++
++  //////////////////////////////////////////////////////////////////////////////
++  //   ____ _   _ _____ ____ _  __  ____  _____ ____ ___  ____  _____ ____    //
++  //  / ___| | | | ____/ ___| |/ / |  _ \| ____/ ___/ _ \|  _ \| ____|  _ \   //
++  // | |   | |_| |  _|| |   | ' /  | | | |  _|| |  | | | | | | |  _| | |_) |  //
++  // | |___|  _  | |__| |___| . \  | |_| | |__| |__| |_| | |_| | |___|  _ <   //
++  //  \____|_| |_|_____\____|_|\_\ |____/|_____\____\___/|____/|_____|_| \_\  //
++  //                                                                          //
++  //////////////////////////////////////////////////////////////////////////////
++
++`ifdef DIFT
++  check_tag check_i_tag
++  (
++    //inputs
++    .instr_rdata_i                   ( instr                     ),
++    .tcr_i                           ( tcr_i                     ),
++    //outputs
++    .source_1_o                      ( check_s1_tag              ),
++    .source_2_o                      ( check_s2_tag              ),
++    .dest_o                          ( check_d_tag               ),
++    .execute_pc_o                    ( execute_pc_tag            )
++  );
++`endif
++
++`ifdef DIFT
++  assign illegal_insn_dec_dift = illegal_insn_dec | exception_tag | exception_i_tag | (execute_pc_tag & pc_id_i_tag);
++`else
++  assign illegal_insn_dec_dift = illegal_insn_dec;
++`endif
+ 
+   ///////////////////////////////////////////////
+   //  ____  _____ ____ ___  ____  _____ ____   //
+@@ -1098,7 +1432,7 @@ module cv32e40p_id_stage
+       // decoder related signals
+       .deassert_we_o(deassert_we),
+ 
+-      .illegal_insn_i(illegal_insn_dec),
++      .illegal_insn_i(illegal_insn_dec_dift),
+       .ecall_insn_i  (ecall_insn_dec),
+       .mret_insn_i   (mret_insn_dec),
+       .uret_insn_i   (uret_insn_dec),
+@@ -1129,6 +1463,9 @@ module cv32e40p_id_stage
+       .exc_pc_mux_o   (exc_pc_mux_o),
+       .exc_cause_o    (exc_cause_o),
+       .trap_addr_mux_o(trap_addr_mux_o),
++`ifdef DIFT
++      .pc_set_o_tag   (pc_set_o_tag),
++`endif
+ 
+       // HWLoop signls
+       .pc_id_i        (pc_id_i),
+@@ -1164,6 +1501,9 @@ module cv32e40p_id_stage
+       .branch_taken_ex_i          (branch_taken_ex),
+       .ctrl_transfer_insn_in_id_i (ctrl_transfer_insn_in_id),
+       .ctrl_transfer_insn_in_dec_i(ctrl_transfer_insn_in_dec),
++`ifdef DIFT
++      .branch_taken_ex_i_tag      (branch_taken_ex_tag),
++`endif
+ 
+       // Interrupt signals
+       .irq_wu_ctrl_i     (irq_wu_ctrl),
+@@ -1597,6 +1937,93 @@ module cv32e40p_id_stage
+     end
+   end
+ 
++`ifdef DIFT
++  always_ff @(posedge clk, negedge rst_n) begin : ID_EX_PIPE_REGISTERS_TAG
++    if (rst_n == 1'b0)
++    begin
++      alu_operator_o_mode         <= ALU_MODE_OLD;
++      alu_operand_a_ex_o_tag      <= '0;
++      alu_operand_b_ex_o_tag      <= '0;
++      alu_operand_c_ex_o_tag      <= '0;
++      pc_ex_o_tag                 <= '0;
++      check_s1_o_tag              <= '0;
++      check_s2_o_tag              <= '0;
++      check_d_o_tag               <= '0;
++      register_set_o_tag          <= '0;
++      is_store_post_o_tag         <= '0;
++      memory_set_o_tag            <= '0;
++      regfile_alu_waddr_ex_o_tag  <= '0;
++      store_dest_addr_ex_o_tag    <= '0;
++      store_source_ex_o_tag       <= '0;
++      use_store_ops_ex_o          <= '0;
++    end
++    else if (data_misaligned_i) begin
++      if (ex_ready_i)
++      begin
++        alu_operand_a_ex_o_tag    <= alu_operand_a_tag;
++        alu_operand_b_ex_o_tag    <= alu_operand_b_tag;
++      end
++    end else begin
++      if (id_valid_o)
++      begin
++        if (~mult_en)                                         // ALU operation
++        begin
++          alu_operator_o_mode           <= alu_operator_mode;
++          check_s1_o_tag                <= check_s1_tag;
++          check_s2_o_tag                <= check_s2_tag;
++          check_d_o_tag                 <= check_d_tag;
++          register_set_o_tag            <= register_set_tag;
++          is_store_post_o_tag           <= is_store_post_tag;
++          memory_set_o_tag              <= memory_set_tag;
++          if (is_store) begin
++            if (enable_a) begin
++              alu_operand_a_ex_o_tag    <= alu_operand_a_tag;  // RS1: destination address tag
++            end else begin
++              alu_operand_a_ex_o_tag    <= '0;
++            end
++	          if (enable_b) begin
++	            alu_operand_b_ex_o_tag    <= alu_operand_c_tag;  // RS2: source tag
++            end else begin
++              alu_operand_b_ex_o_tag    <= '0;
++            end
++            store_dest_addr_ex_o_tag    <= alu_operand_a_tag;  // RS1: destination address tag
++            store_source_ex_o_tag       <= alu_operand_c_tag;  // RS2: source tag
++            use_store_ops_ex_o          <= '1;
++          end else begin
++            alu_operand_a_ex_o_tag      <= alu_operand_a_tag;
++            alu_operand_b_ex_o_tag      <= alu_operand_b_tag;
++            alu_operand_c_ex_o_tag      <= alu_operand_c_tag;
++            store_dest_addr_ex_o_tag    <= '0;
++            store_source_ex_o_tag       <= '0;
++            use_store_ops_ex_o          <= '0;
++          end
++        end
++
++        if (regfile_alu_we_id || register_set_tag) begin
++          regfile_alu_waddr_ex_o_tag    <= regfile_alu_waddr_id;
++        end
++
++        if ((ctrl_transfer_insn_in_id == BRANCH_COND) || data_load_event_id) begin
++          pc_ex_o_tag               <= pc_id_i_tag;
++        end
++      end else if (ex_ready_i) begin
++        // EX stage is ready but we don't have a new instruction for it,
++        // so we clear all DIFT check signals to avoid stale exceptions
++        alu_operator_o_mode         <= ALU_MODE_OLD;
++        check_s1_o_tag              <= '0;
++        check_s2_o_tag              <= '0;
++        check_d_o_tag               <= '0;
++        register_set_o_tag          <= '0;
++        is_store_post_o_tag         <= '0;
++        memory_set_o_tag            <= '0;
++        store_dest_addr_ex_o_tag    <= '0;
++        store_source_ex_o_tag       <= '0;
++        use_store_ops_ex_o          <= '0;
++      end
++    end
++  end
++`endif
++
+   // Performance Counter Events
+ 
+   // Illegal/ebreak/ecall are never counted as retired instructions. Note that actually issued instructions
+diff --git a/rtl/cv32e40p_if_stage.sv b/rtl/cv32e40p_if_stage.sv
+index 23fd14f..8f0c0f1 100644
+--- a/rtl/cv32e40p_if_stage.sv
++++ b/rtl/cv32e40p_if_stage.sv
+@@ -97,6 +97,14 @@ module cv32e40p_if_stage #(
+     // misc signals
+     output logic if_busy_o,  // is the IF stage busy fetching instructions?
+     output logic perf_imiss_o  // Instruction Fetch Miss
++
++    `ifdef DIFT
++    ,
++    input  logic        jump_target_id_i_tag,
++    input  logic        jump_target_ex_i_tag,
++    input  logic        pc_set_i_tag,
++    output logic        pc_id_o_tag
++    `endif
+ );
+ 
+   import cv32e40p_pkg::*;
+@@ -126,6 +134,12 @@ module cv32e40p_if_stage #(
+   logic [31:0] instr_decompressed;
+   logic        instr_compressed_int;
+ 
++  `ifdef DIFT
++  logic        fetch_addr_n_tag;
++  logic        pc_if_o_tag;
++  `endif
++
++
+ 
+   // exception PC selection mux
+   always_comb begin : EXC_PC_MUX
+@@ -170,6 +184,19 @@ module cv32e40p_if_stage #(
+     endcase
+   end
+ 
++  `ifdef DIFT
++  // fetch address tag selection
++  always_comb begin
++    fetch_addr_n_tag = 1'b0;
++    unique case (pc_mux_i)
++      PC_BOOT:   fetch_addr_n_tag = 1'b0;
++      PC_JUMP:   fetch_addr_n_tag = jump_target_id_i_tag;
++      PC_BRANCH: fetch_addr_n_tag = jump_target_ex_i_tag;
++      default:   fetch_addr_n_tag = 1'b0;
++    endcase
++  end
++  `endif
++
+   // tell CS register file to initialize mtvec on boot
+   assign csr_mtvec_init_o = (pc_mux_i == PC_BOOT) & pc_set_i;
+ 
+@@ -226,6 +253,18 @@ module cv32e40p_if_stage #(
+   assign if_busy_o    = prefetch_busy;
+   assign perf_imiss_o = !fetch_valid && !branch_req;
+ 
++  `ifdef DIFT
++    always_ff @(posedge clk, negedge rst_n)
++    begin
++      if (rst_n == 1'b0)
++      begin
++        pc_if_o_tag <= 1'b0;
++      end else if (pc_set_i) begin
++        pc_if_o_tag <= fetch_addr_n_tag;
++      end
++    end
++  `endif
++
+   // IF-ID pipeline registers, frozen when the ID stage is stalled
+   always_ff @(posedge clk, negedge rst_n) begin : IF_ID_PIPE_REGISTERS
+     if (rst_n == 1'b0) begin
+@@ -251,6 +290,25 @@ module cv32e40p_if_stage #(
+     end
+   end
+ 
++  `ifdef DIFT
++    always_ff @(posedge clk, negedge rst_n)
++    begin
++      if (rst_n == 1'b0)
++      begin
++        pc_id_o_tag           <= 1'b0;
++      end else begin
++        if (pc_set_i && pc_mux_i == PC_EXCEPTION) begin
++          pc_id_o_tag         <= 1'b0;
++        end else if (if_valid && instr_valid)
++        begin
++          pc_id_o_tag         <= pc_if_o_tag;
++        end else if (clear_instr_valid_i) begin
++          pc_id_o_tag         <= 1'b0;
++        end
++      end
++    end
++  `endif
++
+   assign if_ready = fetch_valid & id_ready_i;
+   assign if_valid = (~halt_if_i) & if_ready;
+ 
+diff --git a/rtl/cv32e40p_load_store_unit.sv b/rtl/cv32e40p_load_store_unit.sv
+index 8df1d84..97daac2 100644
+--- a/rtl/cv32e40p_load_store_unit.sv
++++ b/rtl/cv32e40p_load_store_unit.sv
+@@ -33,7 +33,7 @@ module cv32e40p_load_store_unit #(
+     output logic data_req_o,
+     input logic data_gnt_i,
+     input logic data_rvalid_i,
+-    input  logic         data_err_i,           // External bus error (validity defined by data_rvalid_i) (not used yet)
++    input  logic data_err_i,           // External bus error (validity defined by data_rvalid_i) (not used yet)
+     input logic data_err_pmp_i,  // PMP error (validity defined by data_gnt_i)
+ 
+     output logic [31:0] data_addr_o,
+@@ -72,6 +72,22 @@ module cv32e40p_load_store_unit #(
+     output logic lsu_ready_wb_o,  // LSU ready for new data in WB stage
+ 
+     output logic busy_o
++
++`ifdef DIFT
++    ,
++    // Sorties vers la mémoire (data interface)
++    output logic         data_we_o_tag,       // Tag write enable vers mémoire
++    output logic         data_wdata_o_tag,    // Tag de la donnée à écrire
++    // Entrées depuis la mémoire
++    input  logic [3:0]   data_rdata_i_tag,     // Tags lus depuis mémoire (4 bits = 1 tag par byte)
++    input  logic         data_gnt_i_tag,       // Mémoire a accordé la requête
++    input  logic         data_rvalid_i_tag,     // Mémoire retourne le tag valide
++    // Depuis EX stage
++    input  logic         data_we_ex_i_tag,    // Le EX veut écrire un tag ?
++    input  logic         data_wdata_ex_i_tag,
++    // Vers ID/EX (register file)
++    output logic         data_rdata_ex_o_tag  // Tag de donnée lue vers registre
++`endif
+ );
+ 
+   localparam DEPTH = 2;  // Maximum number of outstanding transactions
+@@ -119,24 +135,31 @@ module cv32e40p_load_store_unit #(
+ 
+   logic [31:0] rdata_q;
+ 
+-  ///////////////////////////////// BE generation ////////////////////////////////
++`ifdef DIFT
++  logic         data_we_q_tag;           // C'était un STORE ?
++  logic [3:0]   rdata_q_tag;             // Buffer pour misaligned (4 tags)
++  logic [1:0]   rdata_offset_q_tag;      // Offset pour extraction de tag
++  logic [1:0]   data_type_q_tag;         // Type de données (Word/Half/Byte)
++`endif
++
++  ///////////////////////////////// Byte Enable generation ////////////////////////////////
+   always_comb begin
+     case (data_type_ex_i)  // Data type 00 Word, 01 Half word, 11,10 byte
+       2'b00: begin  // Writing a word
+         if (misaligned_st == 1'b0) begin  // non-misaligned case
+           case (data_addr_int[1:0])
+-            2'b00: data_be = 4'b1111;
+-            2'b01: data_be = 4'b1110;
+-            2'b10: data_be = 4'b1100;
+-            2'b11: data_be = 4'b1000;
++            2'b00: data_be = 4'b1111;    // Tous les bytes
++            2'b01: data_be = 4'b1110;    // Bytes 1,2,3
++            2'b10: data_be = 4'b1100;    // Bytes 2,3
++            2'b11: data_be = 4'b1000;    // Byte 3
+           endcase
+           ;  // case (data_addr_int[1:0])
+         end else begin  // misaligned case
+           case (data_addr_int[1:0])
+             2'b00: data_be = 4'b0000;  // this is not used, but included for completeness
+-            2'b01: data_be = 4'b0001;
+-            2'b10: data_be = 4'b0011;
+-            2'b11: data_be = 4'b0111;
++            2'b01: data_be = 4'b0001;  // Byte 0
++            2'b10: data_be = 4'b0011;  // Bytes 0,1
++            2'b11: data_be = 4'b0111;  // Bytes 0,1,2
+           endcase
+           ;  // case (data_addr_int[1:0])
+         end
+@@ -207,6 +230,25 @@ module cv32e40p_load_store_unit #(
+   assign p_elw_start_o  = data_load_event_ex_i && data_req_o;
+   assign p_elw_finish_o = data_load_event_q && data_rvalid_i && !data_misaligned_ex_i;
+ 
++
++`ifdef DIFT
++  always_ff @(posedge clk, negedge rst_n)
++  begin
++    if(rst_n == 1'b0)
++    begin
++      data_type_q_tag    <= '0;
++      data_we_q_tag      <= 1'b0;
++      rdata_offset_q_tag <= 1'b0;
++    end
++    else if (data_gnt_i_tag) // request was granted, we wait for rvalid and can continue to WB
++    begin
++      data_type_q_tag    <= data_type_ex_i;     // Type de données (Word/Half/Byte)
++      data_we_q_tag      <= data_we_ex_i_tag;   // C'était un STORE ?
++      rdata_offset_q_tag <= data_addr_int[1:0]; // Offset
++    end
++  end
++`endif
++
+   ////////////////////////////////////////////////////////////////////////
+   //  ____  _               _____      _                 _              //
+   // / ___|(_) __ _ _ __   | ____|_  _| |_ ___ _ __  ___(_) ___  _ __   //
+@@ -225,10 +267,10 @@ module cv32e40p_load_store_unit #(
+   // take care of misaligned words
+   always_comb begin
+     case (rdata_offset_q)
+-      2'b00: rdata_w_ext = resp_rdata[31:0];
+-      2'b01: rdata_w_ext = {resp_rdata[7:0], rdata_q[31:8]};
+-      2'b10: rdata_w_ext = {resp_rdata[15:0], rdata_q[31:16]};
+-      2'b11: rdata_w_ext = {resp_rdata[23:0], rdata_q[31:24]};
++      2'b00: rdata_w_ext = resp_rdata[31:0];                        // Aligné: prendre tout le mot actuel
++      2'b01: rdata_w_ext = {resp_rdata[7:0], rdata_q[31:8]};        // Décalage de 1 octet: prendre 1 octet du mot actuel + 3 octets du mot précédent
++      2'b10: rdata_w_ext = {resp_rdata[15:0], rdata_q[31:16]};      // Décalage de 2 octets: prendre 2 octets du mot actuel + 2 octets du mot précédent
++      2'b11: rdata_w_ext = {resp_rdata[23:0], rdata_q[31:24]};      // Décalage de 3 octets: prendre 3 octets du mot actuel + 1 octet du mot précédent
+     endcase
+   end
+ 
+@@ -319,6 +361,104 @@ module cv32e40p_load_store_unit #(
+   // output to register file
+   assign data_rdata_ex_o = (resp_valid == 1'b1) ? data_rdata_ext : rdata_q;
+ 
++`ifdef DIFT
++  logic [3:0] data_rdata_ext_tag;
++
++  logic [3:0] rdata_w_ext_tag;
++  logic [3:0] rdata_h_ext_tag;
++  logic [3:0] rdata_b_ext_tag;
++
++  always_comb  // Extraction pour WORD
++  begin
++    case (rdata_offset_q_tag)
++      2'b00: rdata_w_ext_tag = data_rdata_i_tag[3:0];                         // Aligned
++      2'b01: rdata_w_ext_tag = {data_rdata_i_tag[0],   rdata_q_tag[3:1]};     // Misaligned: Décalage de 1 octet
++      2'b10: rdata_w_ext_tag = {data_rdata_i_tag[1:0], rdata_q_tag[3:2]};     // Misaligned: Décalage de 2 octets
++      2'b11: rdata_w_ext_tag = {data_rdata_i_tag[2:0], rdata_q_tag[3]};       // Misaligned: Décalage de 3 octets
++    endcase
++  end
++
++  always_comb   // Extraction pour HALFWORD
++  begin
++    case (rdata_offset_q_tag)
++      2'b00:
++      begin
++        rdata_h_ext_tag = {2'b00, data_rdata_i_tag[1:0]};
++      end
++
++      2'b01:
++      begin
++        rdata_h_ext_tag = {2'b00, data_rdata_i_tag[2:1]};
++      end
++
++      2'b10:
++      begin
++        rdata_h_ext_tag = {2'b00, data_rdata_i_tag[3:2]};
++      end
++
++      2'b11:
++      begin
++        rdata_h_ext_tag = {2'b00, data_rdata_i_tag[0], rdata_q_tag[3]};  // misaligned halfword
++      end
++    endcase
++  end
++
++  always_comb   // Extraction pour BYTE
++  begin
++    case (rdata_offset_q_tag)
++      2'b00:
++      begin
++        rdata_b_ext_tag = {3'b000, data_rdata_i_tag[0]};  // Byte 0
++      end
++
++      2'b01: begin
++        rdata_b_ext_tag = {3'b000, data_rdata_i_tag[1]};  // Byte 1
++      end
++
++      2'b10:
++      begin
++        rdata_b_ext_tag = {3'b000, data_rdata_i_tag[2]};  // Byte 2
++      end
++
++      2'b11:
++      begin
++        rdata_b_ext_tag = {3'b000, data_rdata_i_tag[3]};  // Byte 3
++      end
++    endcase
++  end
++
++  always_comb
++  begin
++    case (data_type_q_tag)
++      2'b00:       data_rdata_ext_tag = rdata_w_ext_tag;
++      2'b01:       data_rdata_ext_tag = rdata_h_ext_tag;
++      2'b10,2'b11: data_rdata_ext_tag = rdata_b_ext_tag;
++    endcase
++  end
++`endif
++
++`ifdef DIFT
++  always_ff @(posedge clk, negedge rst_n)
++  begin
++    if(rst_n == 1'b0) begin
++      rdata_q_tag   <= '0;
++    end else if (data_rvalid_i_tag && (~data_we_q_tag))  begin    //  Tag arrive pour un LOAD
++        // if we have detected a misaligned access, and we are
++        // currently doing the first part of this access, then
++        // store the data coming from memory in rdata_q.
++        // In all other cases, rdata_q gets the value that we are
++        // writing to the register file
++        if ((data_misaligned_ex_i == 1'b1) || (data_misaligned_o == 1'b1))
++          rdata_q_tag  <= data_rdata_i_tag;
++        else
++          rdata_q_tag  <= data_rdata_ext_tag;
++    end else if (data_gnt_i_tag && (~data_we_ex_i_tag) && (~data_misaligned_ex_i)) begin
++      rdata_q_tag <= '0;  // Flush stale residue on new non-misaligned load grant
++    end
++  end
++  assign data_rdata_ex_o_tag = (data_rvalid_i_tag == 1'b1) ? |data_rdata_ext_tag : |rdata_q_tag;
++`endif
++
+   assign misaligned_st   = data_misaligned_ex_i;
+ 
+   // Note: PMP is not fully supported at the moment (not even if USE_PMP = 1)
+@@ -354,6 +494,12 @@ module cv32e40p_load_store_unit #(
+ 
+   assign data_req_ex_filtered = data_req_ex_i & !(apu_busy_i & (data_misaligned_o | data_misaligned_ex_i));
+ 
++`ifdef DIFT
++  // Génération des transactions tags (synchronisées avec données)
++  assign data_we_o_tag    = data_we_ex_i_tag;
++  assign data_wdata_o_tag = data_wdata_ex_i_tag;
++`endif
++
+   //////////////////////////////////////////////////////////////////////////////
+   // Transaction request generation
+   //
+@@ -489,7 +635,6 @@ module cv32e40p_load_store_unit #(
+       .obi_err_i   (data_err_i)  // External bus error (validity defined by obi_rvalid_i)
+   );
+ 
+-
+   //////////////////////////////////////////////////////////////////////////////
+   // Assertions
+   //////////////////////////////////////////////////////////////////////////////
+diff --git a/rtl/cv32e40p_register_file_ff.sv b/rtl/cv32e40p_register_file_ff.sv
+index 4d31c12..c857725 100644
+--- a/rtl/cv32e40p_register_file_ff.sv
++++ b/rtl/cv32e40p_register_file_ff.sv
+@@ -28,7 +28,7 @@
+ ////////////////////////////////////////////////////////////////////////////////
+ 
+ module cv32e40p_register_file #(
+-    parameter ADDR_WIDTH = 5,
++    parameter ADDR_WIDTH = 6,
+     parameter DATA_WIDTH = 32,
+     parameter FPU        = 0,
+     parameter ZFINX      = 0
+diff --git a/rtl/cv32e40p_register_file_tag_ff.sv b/rtl/cv32e40p_register_file_tag_ff.sv
+new file mode 100644
+index 0000000..6a0fc8e
+--- /dev/null
++++ b/rtl/cv32e40p_register_file_tag_ff.sv
+@@ -0,0 +1,110 @@
++////////////////////////////////////////////////////////////////////////////////
++// Engineer:       Christian Palmiero - cp3025@columbia.edu                   //
++//                                                                            //
++//                                                                            //
++// Design Name:    RISC-V register file tag                                   //
++// Project Name:   RI5CY                                                      //
++// Language:       SystemVerilog                                              //
++//                                                                            //
++// Description:    Register file with 32x1 bit tags. Tag 0                    //
++//                 is fixed to 0. This register file is based on flip-flops   //
++//                                                                            //
++////////////////////////////////////////////////////////////////////////////////
++
++module cv32e40p_register_file_tag_ff
++#(
++    parameter ADDR_WIDTH    = 6,
++    parameter DATA_WIDTH    = 1
++)
++(
++    // Clock and Reset
++    input  logic         clk,
++    input  logic         rst_n,
++
++    input  logic                   test_en_i,
++
++    //Read port R1
++    input  logic [ADDR_WIDTH-1:0]  raddr_a_i,
++    output logic [DATA_WIDTH-1:0]  rdata_a_o,
++
++    //Read port R2
++    input  logic [ADDR_WIDTH-1:0]  raddr_b_i,
++    output logic [DATA_WIDTH-1:0]  rdata_b_o,
++
++    //Read port R3
++    input  logic [ADDR_WIDTH-1:0]  raddr_c_i,
++    output logic [DATA_WIDTH-1:0]  rdata_c_o,
++
++    // Write port W1
++    input logic [ADDR_WIDTH-1:0]   waddr_a_i,
++    input logic [DATA_WIDTH-1:0]   wdata_a_i,
++    input logic                    we_a_i,
++
++    // Write port W2
++    input logic [ADDR_WIDTH-1:0]   waddr_b_i,
++    input logic [DATA_WIDTH-1:0]   wdata_b_i,
++    input logic                    we_b_i
++);
++
++  localparam    NUM_WORDS = 2** (ADDR_WIDTH -1);
++
++  logic [NUM_WORDS-1:0][DATA_WIDTH-1:0] rf_reg;
++
++  // write enable decoders
++  logic [NUM_WORDS-1:0]                 we_a_dec;
++  logic [NUM_WORDS-1:0]                 we_b_dec;
++
++  //-----------------------------------------------------------------------------
++  //-- READ : Read address decoder RAD
++  //-----------------------------------------------------------------------------
++  assign rdata_a_o = rf_reg[raddr_a_i];
++  assign rdata_b_o = rf_reg[raddr_b_i];
++  assign rdata_c_o = rf_reg[raddr_c_i];
++
++  //-----------------------------------------------------------------------------
++  //-- WRITE : Write Address Decoder (WAD), combinatorial process
++  //-----------------------------------------------------------------------------
++
++
++  genvar gidx;
++  generate
++    for (gidx = 0; gidx < NUM_WORDS; gidx++) begin : gen_we_decoder
++      assign we_a_dec[gidx] = (waddr_a_i == gidx) ? we_a_i : 1'b0;
++      assign we_b_dec[gidx] = (waddr_b_i == gidx) ? we_b_i : 1'b0;
++    end
++  endgenerate
++
++
++  genvar i;
++  generate
++
++  //-----------------------------------------------------------------------------
++  //-- WRITE : Write operation
++  //-----------------------------------------------------------------------------
++
++    // loop from 1 to NUM_WORDS-1 as R0 is nil
++    for (i = 1; i < NUM_WORDS; i++)
++    begin : rf_gen
++
++      always_ff @(posedge clk, negedge rst_n)
++      begin : register_write_behavioral
++        if (rst_n==1'b0) begin
++          rf_reg[i] <= 'b0;
++        end else begin
++          if(we_b_dec[i] == 1'b1)
++            rf_reg[i] <= wdata_b_i;
++          else if(we_a_dec[i] == 1'b1)
++            rf_reg[i] <= wdata_a_i;
++        end
++      end
++
++    end
++
++    // R0 is nil
++    assign rf_reg[0] = '0;
++
++  endgenerate
++
++
++
++endmodule
+\ No newline at end of file
+diff --git a/rtl/cv32e40p_top.sv b/rtl/cv32e40p_top.sv
+index 7ddd2d5..985e09a 100644
+--- a/rtl/cv32e40p_top.sv
++++ b/rtl/cv32e40p_top.sv
+@@ -65,6 +65,19 @@ module cv32e40p_top #(
+     // CPU Control Signals
+     input  logic fetch_enable_i,
+     output logic core_sleep_o
++
++`ifdef DIFT
++    // ============  DIFT ============
++    ,
++    // Vers Data Memory - Tags en écriture
++    output logic       data_we_tag_o,
++    output logic       data_wdata_tag_o,
++    // Depuis Data Memory - Tags en lecture
++    input  logic [3:0] data_rdata_tag_i,
++    input  logic       data_gnt_tag_i,
++    input  logic       data_rvalid_tag_i
++`endif
++
+ );
+ 
+   import cv32e40p_apu_core_pkg::*;
+@@ -139,6 +152,16 @@ module cv32e40p_top #(
+ 
+       .fetch_enable_i(fetch_enable_i),
+       .core_sleep_o  (core_sleep_o)
++
++`ifdef DIFT
++    // ============  DIFT ============
++    ,
++      .data_we_o_tag(data_we_tag_o),
++      .data_wdata_o_tag(data_wdata_tag_o),
++      .data_rdata_i_tag(data_rdata_tag_i),
++      .data_gnt_i_tag(data_gnt_tag_i),
++      .data_rvalid_i_tag(data_rvalid_tag_i)
++`endif
+   );
+ 
+   generate
+diff --git a/rtl/enable_tag.sv b/rtl/enable_tag.sv
+new file mode 100644
+index 0000000..cfe587e
+--- /dev/null
++++ b/rtl/enable_tag.sv
+@@ -0,0 +1,49 @@
++////////////////////////////////////////////////////////////////////////////////
++// Engineer        Christian Palmiero - cp3025@columbia.edu                   //
++//                                                                            //
++// Design Name:    Enable tag                                                 //
++// Project Name:   RI5CY                                                      //
++// Language:       SystemVerilog                                              //
++//                                                                            //
++// Description:    Enable decoder                                             //
++//                 This unit reads the ENABLE field of the Tag Propagation    //
++//                 Register and sends the proper signals to the EX stage      //
++//                                                                            //
++////////////////////////////////////////////////////////////////////////////////
++
++module enable_tag
++    import cv32e40p_pkg::*;
++(
++  // From IF/ID pipeline
++  input  logic [31:0] instr_rdata_i,
++
++  // From CSRs
++  input  logic [31:0] tpr_i,
++
++  // To ID
++  output logic        is_store_o,
++  output logic        enable_a_o,
++  output logic        enable_b_o
++);
++
++  always_comb
++  begin
++    enable_a_o = 1'b0;
++    enable_b_o = 1'b0;
++    is_store_o = 1'b0;
++
++    unique case (instr_rdata_i[6:0])
++
++      OPCODE_STORE,
++      OPCODE_CUSTOM_1
++      : begin
++        enable_a_o  = tpr_i[LOADSTORE_EN_DEST_ADDR];
++        enable_b_o  = tpr_i[LOADSTORE_EN_SOURCE];
++        is_store_o  = 1'b1;
++      end
++
++      default: ;
++    endcase
++  end
++
++endmodule
+\ No newline at end of file
+diff --git a/rtl/include/cv32e40p_pkg.sv b/rtl/include/cv32e40p_pkg.sv
+index 319e790..84e3552 100644
+--- a/rtl/include/cv32e40p_pkg.sv
++++ b/rtl/include/cv32e40p_pkg.sv
+@@ -227,6 +227,98 @@ package cv32e40p_pkg;
+     FINISH
+   } mult_state_e;
+ 
++  ////////////////////////////////////
++  //   ____ _   _ _____ ____ _  __  //
++  //  / ___| | | | ____/ ___| |/ /  //
++  // | |   | |_| |  _|| |   | ' /   //
++  // | |___|  _  | |__| |___| . \   //
++  //  \____|_| |_|_____\____|_|\_\  //
++  //                                //
++  ////////////////////////////////////
++
++  // Integer class: ADDI, ADD, SUB, MUL, MULD[[S]U], MULW, DIV[U], REM[U], DIV[U]W, REM[U]W
++  parameter INTEGER_CHECK_S1      = 0;
++  parameter INTEGER_CHECK_S2      = 1;
++  parameter INTEGER_CHECK_D       = 2;
++  // Branch class: BEQ, BNE, BLT[U], BGE[U]
++  parameter BRANCH_CHECK_S1       = 3;
++  parameter BRANCH_CHECK_S2       = 4;
++  // Jump class: JAL, JALR
++  parameter JUMP_CHECK_S1         = 5;
++  parameter JUMP_CHECK_S2         = 6;
++  parameter JUMP_CHECK_D          = 7;
++  // Shift class: SLLI, SRLI, SRAI, SLL, SRL, SRA
++  parameter SHIFT_CHECK_S1        = 8;
++  parameter SHIFT_CHECK_S2        = 9;
++  parameter SHIFT_CHECK_D         = 10;
++  // Comparison class: SLTI[U], SLT[U]
++  parameter COMPARISON_CHECK_S1   = 11;
++  parameter COMPARISON_CHECK_S2   = 12;
++  parameter COMPARISON_CHECK_D    = 13;
++  // Logical class: ANDI, ORI, XORI, AND, OR, XOR
++  parameter LOGICAL_CHECK_S1      = 14;
++  parameter LOGICAL_CHECK_S2      = 15;
++  parameter LOGICAL_CHECK_D       = 16;
++  // Load/Store class: LW, LH[U], LB[U], SW, SH, SB, LUI, AUIPC
++  parameter LOADSTORE_CHECK_S     = 17;
++  parameter LOADSTORE_CHECK_SA    = 18;
++  parameter LOADSTORE_CHECK_D     = 19;
++  parameter LOADSTORE_CHECK_DA    = 20;
++  // Execute class: PC
++  parameter EXECUTE_PC            = 21;
++
++  ///////////////////////////////////////////////
++  //   _____ _   _    _    ____  _     _____   //
++  //  | ____| \ | |  / \  | __ )| |   | ____|  //
++  //  |  _| |  \| | / _ \ |  _ \| |   |  _|    //
++  //  | |___| |\  |/ ___ \| |_) | |___| |___   //
++  //  |_____|_| \_/_/   \_\____/|_____|_____|  //
++  //                                           //
++  ///////////////////////////////////////////////
++
++  parameter LOADSTORE_EN_SOURCE      = 15;
++  parameter LOADSTORE_EN_SOURCE_ADDR = 16;
++  parameter LOADSTORE_EN_DEST_ADDR   = 17;
++
++  //////////////////////////////////
++  //   __  __  ___  ____  _____   //
++  //  |  \/  |/ _ \|  _ \| ____|  //
++  //  | |\/| | | | | | | |  _|    //
++  //  | |  | | |_| | |_| | |___   //
++  //  |_|  |_|\___/|____/|_____|  //
++  //                              //
++  //////////////////////////////////
++
++  parameter ALU_MODE_WIDTH = 2;
++
++  parameter ALU_MODE_OLD    = 2'b00;
++  parameter ALU_MODE_AND    = 2'b01;
++  parameter ALU_MODE_OR     = 2'b10;
++  parameter ALU_MODE_CLEAR  = 2'b11;
++
++  // Integer class: ADDI, ADD, SUB, MUL, MULD[[S]U], MULW, DIV[U], REM[U], DIV[U]W, REM[U]W
++  parameter INTEGER_LOW      = 0;
++  parameter INTEGER_HIGH     = 1;
++  // Branch class: BEQ, BNE, BLT[U], BGE[U]
++  parameter BRANCH_LOW       = 2;
++  parameter BRANCH_HIGH      = 3;
++  // Jump class: JAL, JALR
++  parameter JUMP_LOW         = 4;
++  parameter JUMP_HIGH        = 5;
++  // Shift class: SLLI, SRLI, SRAI, SLL, SRL, SRA
++  parameter SHIFT_LOW        = 6;
++  parameter SHIFT_HIGH       = 7;
++  // Comparison class: SLTI[U], SLT[U]
++  parameter COMPARISON_LOW   = 8;
++  parameter COMPARISON_HIGH  = 9;
++  // Logical class: ANDI, ORI, XORI, AND, OR, XOR
++  parameter LOGICAL_LOW      = 10;
++  parameter LOGICAL_HIGH     = 11;
++  // Load/Store class: LW, LH[U], LB[U], SW, SH, SB, LUI, AUIPC
++  parameter LOADSTORE_LOW    = 12;
++  parameter LOADSTORE_HIGH   = 13;
++
++
+   /////////////////////////////////////////////////////////
+   //    ____ ____    ____            _     _             //
+   //   / ___/ ___|  |  _ \ ___  __ _(_)___| |_ ___ _ __  //
+@@ -271,6 +363,10 @@ package cv32e40p_pkg;
+     CSR_LPEND1   = 12'hCC5,  // Custom CSR. Included if PULP_HWLP = 1
+     CSR_LPCOUNT1 = 12'hCC6,  // Custom CSR. Included if PULP_HWLP = 1
+ 
++    // DIFT - Dynamic Information Flow Tracking
++    CSR_TPR = 12'h7C0,  // Custom CSR. Tag Propagation Register
++    CSR_TCR = 12'h7C1,  // Custom CSR. Tag Check Register
++
+     // User Hart ID
+     CSR_UHARTID = 12'hCD0,  // Custom CSR. User Hart ID
+ 
+diff --git a/rtl/load_check.sv b/rtl/load_check.sv
+new file mode 100644
+index 0000000..78cae6e
+--- /dev/null
++++ b/rtl/load_check.sv
+@@ -0,0 +1,47 @@
++////////////////////////////////////////////////////////////////////////////////
++// Engineer        Christian Palmiero - cp3025@columbia.edu                   //
++//                                                                            //
++// Design Name:    Load check                                                 //
++// Project Name:   RI5CY                                                      //
++// Language:       SystemVerilog                                              //
++//                                                                            //
++// Description:    This unit raises an exception if a check is enabled in     //
++//                 the Tag Check Register and the tag bit of the              //
++//                 corresponding operand is set.                              //
++//                 This unit is dedicated to the LOAD operation               //
++//                                                                            //
++////////////////////////////////////////////////////////////////////////////////
++
++module load_check
++    import cv32e40p_pkg::*;
++(
++  input  logic        regfile_wdata_wb_i_tag,  // M[RS1+offset]: source tag
++  input  logic        rs1_i_tag,               // RS1: source address tag
++  input  logic        regfile_dest_tag,        // RD: destination tag
++  input  logic [31:0] tcr_i,
++  input  logic        regfile_we_wb_i,         //is a load?" (1=yes, 0=no)
++
++  output logic        exception_o
++);
++
++  logic  check_s;
++  logic  check_sa;
++  logic  check_d;
++
++  assign check_s  = tcr_i[LOADSTORE_CHECK_S];
++  assign check_sa = tcr_i[LOADSTORE_CHECK_SA];
++  assign check_d  = tcr_i[LOADSTORE_CHECK_D];
++
++  always_comb
++  begin
++    exception_o     = 1'b0;
++    if (regfile_we_wb_i) begin
++      if ((regfile_wdata_wb_i_tag & check_s) || (rs1_i_tag & check_sa) || (regfile_dest_tag & check_d)) begin
++        exception_o = 1'b1;
++      end else begin
++        exception_o = 1'b0;
++      end
++    end
++  end
++
++endmodule
+\ No newline at end of file
+diff --git a/rtl/load_propagation.sv b/rtl/load_propagation.sv
+new file mode 100644
+index 0000000..4fae4ff
+--- /dev/null
++++ b/rtl/load_propagation.sv
+@@ -0,0 +1,59 @@
++////////////////////////////////////////////////////////////////////////////////
++// Engineer        Christian Palmiero - cp3025@columbia.edu                   //
++//                                                                            //
++// Design Name:    Load propagation                                           //
++// Project Name:   RI5CY                                                      //
++// Language:       SystemVerilog                                              //
++//                                                                            //
++// Description:    This unit reads the MODE and the ENABLE field of the       //
++//                 Tag Propagation Register and computes the destination tag. //
++//                 This unit is dedicated to the LOAD operation               //
++//                                                                            //
++////////////////////////////////////////////////////////////////////////////////
++
++module load_propagation
++    import cv32e40p_pkg::*;
++(
++  input  logic        regfile_wdata_wb_i_tag,  // M[RS1+offset]: source tag
++  input  logic        rs1_i_tag,               // RS1: source address tag
++  input  logic        regfile_we_wb_i,         // is a LOAD?" (1=yes, 0=no)
++  input  logic [31:0] tpr_i,
++
++  output logic        regfile_dest_tag,        // Le tag calculé pour RD
++  output logic        regfile_enable_tag       // write tag (1=yes, 0=no)
++);
++
++  logic [ALU_MODE_WIDTH-1:0] alu_operator_mode;
++  logic enable_a;
++  logic enable_b;
++  logic operand_a;
++  logic operand_b;
++
++  assign alu_operator_mode = tpr_i[LOADSTORE_HIGH:LOADSTORE_LOW];
++  assign enable_a  = tpr_i[LOADSTORE_EN_SOURCE_ADDR];
++  assign enable_b  = tpr_i[LOADSTORE_EN_SOURCE];
++  assign operand_a = rs1_i_tag & enable_a;
++  assign operand_b = regfile_wdata_wb_i_tag & enable_b;
++
++  always_comb
++  begin
++    regfile_dest_tag     = 1'b0;
++    regfile_enable_tag   = 1'b0;
++    if (regfile_we_wb_i) begin  // Si c'est un LOAD
++      regfile_dest_tag   = 1'b0;
++      regfile_enable_tag = 1'b1;
++
++      unique case (alu_operator_mode)
++        // Standard Operations
++        ALU_MODE_OLD: begin
++          regfile_enable_tag = 1'b0;
++        end
++        ALU_MODE_AND:   regfile_dest_tag = operand_a & operand_b;
++        ALU_MODE_OR:    regfile_dest_tag = operand_a | operand_b;
++        ALU_MODE_CLEAR: regfile_dest_tag = '0;
++        default: ; // default case to suppress unique warning
++      endcase
++    end
++  end
++
++endmodule
+\ No newline at end of file
+diff --git a/rtl/mode_tag.sv b/rtl/mode_tag.sv
+new file mode 100644
+index 0000000..4da81f9
+--- /dev/null
++++ b/rtl/mode_tag.sv
+@@ -0,0 +1,245 @@
++////////////////////////////////////////////////////////////////////////////////
++// Engineer        Christian Palmiero - cp3025@columbia.edu                   //
++//                                                                            //
++// Design Name:    Mode tag                                                   //
++// Project Name:   RI5CY                                                      //
++// Language:       SystemVerilog                                              //
++//                                                                            //
++// Description:    Mode decoder                                               //
++//                 This unit reads the MODE field of the Tag Propagation      //
++//                 Register and sends the proper signals to the EX stage      //
++//                                                                            //
++////////////////////////////////////////////////////////////////////////////////
++
++module mode_tag
++    import cv32e40p_pkg::*;
++(
++  // From IF/ID pipeline
++  input  logic [31:0] instr_rdata_i,
++
++  // From CSRs
++  input  logic [31:0] tpr_i,
++
++  // ALU signals
++  output logic [ALU_MODE_WIDTH-1:0] alu_operator_o_mode,
++  output logic                      register_set_o,
++  output logic                      is_store_post_o,
++  output logic                      memory_set_o
++);
++
++  always_comb
++  begin
++    alu_operator_o_mode          = ALU_MODE_OLD;
++    register_set_o               = 1'b0;
++    memory_set_o                 = 1'b0;
++    is_store_post_o              = 1'b0;
++
++    unique case (instr_rdata_i[6:0])
++
++      ////////////////////////////////
++      //      _ _   _ __  __ ____   //
++      //     | | | | |  \/  |  _ \  //
++      //  _  | | | | | |\/| | |_) | //
++      // | |_| | |_| | |  | |  __/  //
++      //  \___/ \___/|_|  |_|_|     //
++      //                            //
++      ////////////////////////////////
++
++      OPCODE_JAL,
++      OPCODE_JALR: begin   // Jump and Link
++        alu_operator_o_mode  = tpr_i[JUMP_HIGH:JUMP_LOW];
++      end
++
++     //////////////////////////////////////////////
++     //  ____  ____      _    _   _  ____ _   _  //
++     // | __ )|  _ \    / \  | \ | |/ ___| | | | //
++     // |  _ \| |_) |  / _ \ |  \| | |   | |_| | //
++     // | |_) |  _ <  / ___ \| |\  | |___|  _  | //
++     // |____/|_| \_\/_/   \_\_| \_|\____|_| |_| //
++     //                                          //
++     //////////////////////////////////////////////
++
++      OPCODE_BRANCH: begin // Branch
++        alu_operator_o_mode  = tpr_i[BRANCH_HIGH:BRANCH_LOW];
++      end
++
++      //////////////////////////////////
++      //  _     ____    ______ _____  //
++      // | |   |  _ \  / / ___|_   _| //
++      // | |   | | | |/ /\___ \ | |   //
++      // | |___| |_| / /  ___) || |   //
++      // |_____|____/_/  |____/ |_|   //
++      //                              //
++      //////////////////////////////////
++
++      OPCODE_STORE
++      : begin
++        if(instr_rdata_i[14:12] == 3'b111 ||   // p.spsw (word tag)
++           instr_rdata_i[14:12] == 3'b110 ||   // p.spsh (halfword tag)
++           instr_rdata_i[14:12] == 3'b101) begin // p.spsb (byte tag)
++          memory_set_o = 1'b1;
++        end else begin
++          alu_operator_o_mode  = tpr_i[LOADSTORE_HIGH:LOADSTORE_LOW];
++        end
++      end
++
++      OPCODE_CUSTOM_1
++      : begin
++        alu_operator_o_mode  = tpr_i[LOADSTORE_HIGH:LOADSTORE_LOW];
++        is_store_post_o      = 1'b1;
++      end
++
++      OPCODE_LUI,
++      OPCODE_AUIPC
++      : begin
++        alu_operator_o_mode  = tpr_i[LOADSTORE_HIGH:LOADSTORE_LOW];
++      end
++
++      OPCODE_LOAD
++      //OPCODE_LOAD_POST,
++      : begin
++        alu_operator_o_mode  = ALU_MODE_OLD;
++      end
++
++      /////////////////////////////////////////////////////////////////////////////////
++      //   ___ _____ _   _ _____ ____     ____ _        _    ____ ____  _____ ____   //
++      //  / _ \_   _| | | | ____|  _ \   / ___| |      / \  / ___/ ___|| ____/ ___|  //
++      // | | | || | | |_| |  _| | |_) | | |   | |     / _ \ \___ \___ \|  _| \___ \  //
++      // | |_| || | |  _  | |___|  _ <  | |___| |___ / ___ \ ___) |__) | |___ ___) | //
++      //  \___/ |_| |_| |_|_____|_| \_\  \____|_____/_/   \_\____/____/|_____|____/  //
++      //                                                                             //
++      /////////////////////////////////////////////////////////////////////////////////
++
++      OPCODE_OPIMM: begin
++        unique case (instr_rdata_i[14:12])
++          3'b000: begin  // ADDI
++            alu_operator_o_mode  = tpr_i[INTEGER_HIGH:INTEGER_LOW];
++          end
++          3'b001: begin
++            unique case (instr_rdata_i[31:25])
++              7'b0000000: begin // SLLI
++                alu_operator_o_mode  = tpr_i[SHIFT_HIGH:SHIFT_LOW];
++              end
++              default: ;
++            endcase
++          end
++          3'b010, 3'b011: begin  // SLTI, SLTIU
++            alu_operator_o_mode  = tpr_i[COMPARISON_HIGH:COMPARISON_LOW];
++          end
++          3'b100, 3'b110, 3'b111: begin  // XORI, ORI, ANDI
++            alu_operator_o_mode  = tpr_i[LOGICAL_HIGH:LOGICAL_LOW];
++          end
++          3'b101: begin
++            unique case (instr_rdata_i[31:25])
++              7'b0000000, 7'b0100000: begin // SRLI, SRAI
++                alu_operator_o_mode  = tpr_i[SHIFT_HIGH:SHIFT_LOW];
++              end
++              default: ;
++            endcase
++          end
++          default: ;
++        endcase
++      end
++
++      OPCODE_OP: begin
++        if(instr_rdata_i[31:25] == 7'b1011010) begin
++          register_set_o = 1'b1;
++        end else begin
++          unique case (instr_rdata_i[14:12])
++            3'b000: begin
++              unique case (instr_rdata_i[31:25])
++                7'b0000000, 7'b0100000: begin // ADD, SUB
++                  alu_operator_o_mode  = tpr_i[INTEGER_HIGH:INTEGER_LOW];
++                end
++                7'b0000001: begin // MUL
++                  alu_operator_o_mode  = tpr_i[INTEGER_HIGH:INTEGER_LOW];
++                end
++                default: ;
++              endcase
++            end
++            3'b001: begin
++              unique case (instr_rdata_i[31:25])
++                7'b0000000: begin // SLL
++                  alu_operator_o_mode  = tpr_i[SHIFT_HIGH:SHIFT_LOW];
++                end
++                7'b0000001: begin // MULH
++                  alu_operator_o_mode  = tpr_i[INTEGER_HIGH:INTEGER_LOW];
++                end
++                default: ;
++              endcase
++            end
++            3'b010: begin
++              unique case (instr_rdata_i[31:25])
++                7'b0000000: begin // SLT
++                  alu_operator_o_mode  = tpr_i[COMPARISON_HIGH:COMPARISON_LOW];
++                end
++                7'b0000001: begin // MULHSU
++                  alu_operator_o_mode  = tpr_i[INTEGER_HIGH:INTEGER_LOW];
++                end
++                default: ;
++              endcase
++            end
++            3'b011: begin
++              unique case (instr_rdata_i[31:25])
++                7'b0000000: begin // SLTU
++                  alu_operator_o_mode  = tpr_i[COMPARISON_HIGH:COMPARISON_LOW];
++                end
++                7'b0000001: begin // MULHU
++                  alu_operator_o_mode  = tpr_i[INTEGER_HIGH:INTEGER_LOW];
++                end
++                default: ;
++              endcase
++            end
++            3'b100: begin
++              unique case (instr_rdata_i[31:25])
++                7'b0000000: begin // XOR
++                  alu_operator_o_mode  = tpr_i[LOGICAL_HIGH:LOGICAL_LOW];
++                end
++                7'b0000001: begin // DIV
++                  alu_operator_o_mode  = tpr_i[INTEGER_HIGH:INTEGER_LOW];
++                end
++                default: ;
++              endcase
++            end
++            3'b101: begin
++              unique case (instr_rdata_i[31:25])
++                7'b0000000, 7'b0100000: begin // SRL, SRA
++                  alu_operator_o_mode  = tpr_i[SHIFT_HIGH:SHIFT_LOW];
++                end
++                7'b0000001: begin // DIVU
++                  alu_operator_o_mode  = tpr_i[INTEGER_HIGH:INTEGER_LOW];
++                end
++                default: ;
++              endcase
++            end
++            3'b110: begin
++              unique case (instr_rdata_i[31:25])
++                7'b0000000: begin // OR
++                  alu_operator_o_mode  = tpr_i[LOGICAL_HIGH:LOGICAL_LOW];
++                end
++                7'b0000001: begin // REM
++                  alu_operator_o_mode  = tpr_i[INTEGER_HIGH:INTEGER_LOW];
++                end
++                default: ;
++              endcase
++            end
++            3'b111: begin
++              unique case (instr_rdata_i[31:25])
++                7'b0000000: begin // AND
++                  alu_operator_o_mode  = tpr_i[LOGICAL_HIGH:LOGICAL_LOW];
++                end
++                7'b0000001: begin // REMU
++                  alu_operator_o_mode  = tpr_i[INTEGER_HIGH:INTEGER_LOW];
++                end
++                default: ;
++              endcase
++            end
++            default: ;
++          endcase
++        end
++      end
++      default: ;
++    endcase
++  end
++
++endmodule
+\ No newline at end of file
+diff --git a/rtl/tag_check_logic.sv b/rtl/tag_check_logic.sv
+new file mode 100644
+index 0000000..a3ed312
+--- /dev/null
++++ b/rtl/tag_check_logic.sv
+@@ -0,0 +1,41 @@
++////////////////////////////////////////////////////////////////////////////////
++// Engineer        Christian Palmiero - cp3025@columbia.edu                   //
++//                                                                            //
++// Design Name:    Tag Check Logic                                            //
++// Project Name:   RI5CY                                                      //
++// Language:       SystemVerilog                                              //
++//                                                                            //
++// Description:    This unit raises an exception if a check is enabled in     //
++//                 the Tag Check Register and the tag bit of the              //
++//                 corresponding operand is set                               //
++//                                                                            //
++////////////////////////////////////////////////////////////////////////////////
++
++module tag_check_logic
++    import cv32e40p_pkg::*;
++(
++  input  logic  operand_a_i,
++  input  logic  operand_b_i,
++  input  logic  result_i,
++  input  logic  check_s1_i,
++  input  logic  check_s2_i,
++  input  logic  check_d_i,
++  input  logic  is_load_i,
++
++  output logic  exception_o
++);
++
++  always_comb
++  begin
++    if (~is_load_i) begin
++      if ((operand_a_i & check_s1_i) || (operand_b_i & check_s2_i) || (result_i & check_d_i)) begin
++        exception_o = 1'b1;
++      end else begin
++        exception_o = 1'b0;
++      end
++    end else begin
++      exception_o   = 1'b0;
++    end
++  end
++
++endmodule
+\ No newline at end of file
+diff --git a/rtl/tag_propagation_logic.sv b/rtl/tag_propagation_logic.sv
+new file mode 100644
+index 0000000..a2c53be
+--- /dev/null
++++ b/rtl/tag_propagation_logic.sv
+@@ -0,0 +1,45 @@
++////////////////////////////////////////////////////////////////////////////////
++// Engineer        Christian Palmiero - cp3025@columbia.edu                   //
++//                                                                            //
++// Design Name:    Tag Propagation Logic                                      //
++// Project Name:   RI5CY                                                      //
++// Language:       SystemVerilog                                              //
++//                                                                            //
++// Description:    This unit computes the destination operand tag based on    //
++//                 the source operands tags and on the type of the operation  //
++//                 specified in the Tag Propagation Register                  //
++//                                                                            //
++////////////////////////////////////////////////////////////////////////////////
++
++module tag_propagation_logic
++  import cv32e40p_pkg::*;
++(
++  input  logic [ALU_MODE_WIDTH-1:0]   operator_i,
++  input  logic                      operand_a_i,
++  input  logic                      operand_b_i,
++
++  output logic                      result_o,
++  output logic                      rf_enable_tag,
++  output logic                      pc_enable_tag
++);
++
++  always_comb
++  begin
++    result_o      = 1'b0;
++    rf_enable_tag = 1'b1;
++    pc_enable_tag = 1'b1;
++
++    unique case (operator_i)
++      // Standard Operations
++      ALU_MODE_OLD: begin   //no propagation
++        rf_enable_tag = 1'b0;
++        pc_enable_tag = 1'b0;
++      end
++      ALU_MODE_AND:   result_o = operand_a_i & operand_b_i;
++      ALU_MODE_OR:    result_o = operand_a_i | operand_b_i;
++      ALU_MODE_CLEAR: result_o = 1'b0;
++      default: ; // default case to suppress unique warning
++    endcase
++  end
++
++endmodule
+\ No newline at end of file

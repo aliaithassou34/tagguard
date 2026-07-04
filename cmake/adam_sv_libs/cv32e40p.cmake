@@ -1,6 +1,9 @@
 set(CV32E40P_SOURCE_DIR "${CMAKE_SOURCE_DIR}/third_party/cv32e40p")
 
-adam_git_submodule_ensure("${CV32E40P_SOURCE_DIR}" RECURSIVE)
+adam_git_submodule_ensure("${CV32E40P_SOURCE_DIR}" RECURSIVE
+  PATCHES
+    "${CMAKE_SOURCE_DIR}/patches/cv32e40p/0001-Add-DIFT-support.patch"
+)
 
 adam_sv_add_library(cv32e40p_fpnew_rtl
   DEPENDS
@@ -71,4 +74,12 @@ adam_sv_add_library(cv32e40p_rtl
     cv32e40p_obi_interface.sv
     cv32e40p_popcnt.sv
     cv32e40p_register_file_ff.sv
+    cv32e40p_register_file_tag_ff.sv
+    check_tag.sv
+    enable_tag.sv
+    load_check.sv
+    load_propagation.sv
+    mode_tag.sv
+    tag_check_logic.sv
+    tag_propagation_logic.sv
 )

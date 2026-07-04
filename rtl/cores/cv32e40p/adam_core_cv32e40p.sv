@@ -64,6 +64,29 @@ module adam_core_cv32e40p #(
 
     assign data_rready = 1;
 
+`ifdef DIFT
+    // DIFT tag sideband signals (data path only)
+    logic data_we_o_tag;
+    logic data_wdata_o_tag;
+    logic [STRB_WIDTH-1:0] data_rdata_i_tag;
+
+    logic [STRB_WIDTH-1:0] data_tag_wdata;  // STRB_WIDTH bits to obi_to_axil
+    logic [STRB_WIDTH-1:0] data_tag_rdata;  // STRB_WIDTH bits from obi_to_axil
+
+    assign data_rdata_i_tag = data_tag_rdata;
+
+    // Tag-only store (p.spsw/p.spsh/p.spsb): data_we=0, data_we_o_tag=1
+    logic  data_we_effective;
+    STRB_T data_be_effective;
+
+    assign data_we_effective = data_we | data_we_o_tag;
+    assign data_be_effective = (data_we_o_tag && !data_we) ? '0 : data_be;
+
+    assign data_tag_wdata = (data_we_o_tag && !data_we)
+                          ? (data_be & {STRB_WIDTH{data_wdata_o_tag}})
+                          : {STRB_WIDTH{data_wdata_o_tag}};
+`endif
+
     assign debug_unavail = pause.req || pause.ack;
 
     cv32e40p_top #(
@@ -109,6 +132,15 @@ module adam_core_cv32e40p #(
         .data_we_o     (data_we),
         .data_rdata_i  (data_rdata),
 
+`ifdef DIFT
+        // DIFT tag sideband (shared timing with data path)
+        .data_we_tag_o     (data_we_o_tag),
+        .data_wdata_tag_o  (data_wdata_o_tag),
+        .data_rdata_tag_i  (data_rdata_i_tag),
+        .data_gnt_tag_i    (data_gnt),
+        .data_rvalid_tag_i (data_rvalid),
+`endif
+
         // Interrupt interface
         .irq_i     ({20'b0, irq, 11'b0}),
         .irq_ack_o (),
@@ -137,7 +169,13 @@ module adam_core_cv32e40p #(
         .wdata  ('0),
         .rvalid (inst_rvalid),
         .rready (inst_rready),
-        .rdata  (inst_rdata) 
+        .rdata  (inst_rdata)
+
+`ifdef DIFT
+        ,
+        .tag_wdata ('0),
+        .tag_rdata ()
+`endif
     );
 
     adam_obi_to_axil #(
@@ -151,12 +189,23 @@ module adam_core_cv32e40p #(
         .req    (data_req),
         .gnt    (data_gnt),
         .addr   (data_addr),
+`ifdef DIFT
+        .we     (data_we_effective),
+        .be     (data_be_effective),
+`else
         .we     (data_we),
         .be     (data_be),
+`endif
         .wdata  (data_wdata),
         .rvalid (data_rvalid),
         .rready (data_rready),
-        .rdata  (data_rdata) 
+        .rdata  (data_rdata)
+
+`ifdef DIFT
+        ,
+        .tag_wdata (data_tag_wdata),
+        .tag_rdata (data_tag_rdata)
+`endif
     );
 
     // pause ==================================================================
