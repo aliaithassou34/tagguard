@@ -30,6 +30,13 @@ add_subdirectory(dift_branch_emulate)
 add_subdirectory(dift_mmio_guard)
 add_subdirectory(diftbypass)
 
+# false-positive evaluation benchmarks
+add_subdirectory(bench_matmul)
+add_subdirectory(bench_fft)
+add_subdirectory(bench_uart_command_fp)
+add_subdirectory(bench_uart_data_integrity)
+add_subdirectory(bench_taint_compare)
+
 if(ADAM_ENABLE_TFLM)
   add_subdirectory(tflm_kws)
   add_subdirectory(tflm_lenet)

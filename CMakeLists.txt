@@ -141,6 +141,8 @@ include(adam_targets/nexys_video_bench_cots_trusted_runtime)
 # DIFT auto-taint / MMIO-guard demo targets
 include(adam_targets/nexys_video_dift_autotaint)
 include(adam_targets/nexys_video_dift_mmio_guard)
+include(adam_targets/nexys_video_bench_uart_command_fp)
+include(adam_targets/nexys_video_bench_uart_data_integrity)
 
 if (ADAM_ENABLE_GMSV)
   include(adam_targets/nexys_video_gmsv)
