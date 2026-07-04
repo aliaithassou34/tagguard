@@ -1,4 +1,5 @@
 add_subdirectory(Binary)
+add_subdirectory(DIFTBoot)
 add_subdirectory(HAL)
 add_subdirectory(Tensor)
 

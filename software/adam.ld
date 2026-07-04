@@ -17,6 +17,16 @@ SECTIONS
         *(.rodata.fp .rodata.fp.*) /* Read-only FP tables */
         *(.gcc_except_table.*)     /* Exception handling tables */
 
+        . = ALIGN(4);
+        PROVIDE(__adam_dift_trusted_start = .);
+        KEEP(*(.adam_dift.trusted .adam_dift.trusted.*))
+        PROVIDE(__adam_dift_trusted_end = .);
+
+        . = ALIGN(4);
+        PROVIDE(__adam_dift_protected_start = .);
+        KEEP(*(.adam_dift.protected .adam_dift.protected.*))
+        PROVIDE(__adam_dift_protected_end = .);
+
         . = ALIGN(64);
         __mem0_end = .;
     } > MEM0
@@ -72,6 +82,7 @@ SECTIONS
 
         . = ALIGN(64);
         __bss_end = .;
+        PROVIDE(end = .);
         __heap_start = .;
 
         . = ORIGIN(MEM1) + LENGTH(MEM1) - STACK_SIZE - 255;
