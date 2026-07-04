@@ -36,13 +36,30 @@ void *_sbrk(int nbytes) {
   return base;
 }
 
-int _read(int file, char *ptr UNUSED, int len UNUSED) {
+int _read(int file, char *ptr, int len) {
   if (file != STDIN_FILENO) {
     errno = EBADF;
     return -1;
   }
-  return 0;
+    if (len <= 0 || ptr == NULL) {
+    if (ptr == NULL)
+      errno = EFAULT;
+    return (len < 0) ? 0 : -1;
+  }
+
+  for (int i = 0; i < len; i++) {
+    while (!RAL.LSPA.UART[0]->RBF)
+      ;
+    ptr[i] = RAL.LSPA.UART[0]->DR;
+
+    // Return early on newline so scanf/fgets work line-by-line
+    if (ptr[i] == '\n' || ptr[i] == '\r')
+      return i + 1;
+  }
+
+  return len;
 }
+
 
 int _write(int file, char *buf, int nbytes) {
   if (file != STDOUT_FILENO && file != STDERR_FILENO) {
