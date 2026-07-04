@@ -73,10 +73,35 @@ module adam_syscfg #(
     output logic      hsp_rst   [NO_HSPS+1],
     ADAM_PAUSE.Master hsp_pause [NO_HSPS+1],
     input  logic      hsp_irq   [NO_HSPS+1]
+
+`ifdef DIFT
+    , output logic [NO_LSPAS:0] lspa_taint_en,
+    output logic [NO_LSPBS:0]   lspb_taint_en,
+    output logic [NO_LSPAS:0]   lspa_guard_en,
+    output logic [NO_LSPBS:0]   lspb_guard_en,
+    input  logic [NO_LSPAS:0]   lspa_guard_exc,
+    input  logic [NO_LSPBS:0]   lspb_guard_exc
+`endif
 );
 
     localparam NO_TGTS = 4 + EN_LSPA + EN_LSPB + EN_HSP + EN_LPCPU + EN_LPMEM +
-        NO_CPUS + NO_DMAS + NO_MEMS + NO_LSPAS + NO_LSPBS;
+        NO_CPUS + NO_DMAS + NO_MEMS + NO_LSPAS + NO_LSPBS
+`ifdef DIFT
+        + 1
+`endif
+        ;
+
+`ifdef DIFT
+    localparam int unsigned DIFT_LSPA_S = 0;
+    localparam int unsigned DIFT_LSPB_S = DIFT_LSPA_S + NO_LSPAS;
+    localparam int unsigned DIFT_NO_PERIPHS = NO_LSPAS + NO_LSPBS;
+
+    initial begin
+        assert (DIFT_NO_PERIPHS <= DATA_WIDTH)
+        else $error("DIFT peripheral bitfields require %0d bits but DATA_WIDTH is %0d",
+            DIFT_NO_PERIPHS, DATA_WIDTH);
+    end
+`endif
 
     DATA_T irq_vec;
 
@@ -516,6 +541,99 @@ module adam_syscfg #(
                 .tgt_irq       ()
             );
         end
+
+`ifdef DIFT
+        // DIFT registers: +0 DTSR (taint source), +4 MPM (guard mask), +8 MPS (guard status, sticky W1C)
+
+        localparam DIFT_S = HSP_E;
+        localparam DIFT_E = DIFT_S + 1;
+
+        for (genvar i = DIFT_S; i < DIFT_E; i++) begin
+            DATA_T dift_dtsr;
+            DATA_T dift_mpm;
+            DATA_T dift_mps;
+
+            // stateless block: always ack pause/resume immediately
+            assign tgt_pause[i].ack = tgt_pause[i].req;
+
+            always_ff @(posedge seq.clk) begin
+                if (seq.rst) begin
+                    dift_dtsr <= '0;
+                    dift_mpm  <= '0;
+                    dift_mps  <= '0;
+
+                    tgt_apb[i].prdata  <= '0;
+                    tgt_apb[i].pready  <= '0;
+                    tgt_apb[i].pslverr <= '0;
+                end
+                else begin
+                    // sticky: cleared only by software write of 1
+                    for (int periph_idx = 0; periph_idx < NO_LSPAS; periph_idx++) begin
+                        if (lspa_guard_exc[periph_idx]) begin
+                            dift_mps[DIFT_LSPA_S+periph_idx] <= 1'b1;
+                        end
+                    end
+                    for (int periph_idx = 0; periph_idx < NO_LSPBS; periph_idx++) begin
+                        if (lspb_guard_exc[periph_idx]) begin
+                            dift_mps[DIFT_LSPB_S+periph_idx] <= 1'b1;
+                        end
+                    end
+
+                    if (tgt_apb[i].psel && !tgt_apb[i].pready) begin
+                        case (tgt_apb[i].paddr[3:2])
+                            2'd0: begin // DTSR
+                                if (tgt_apb[i].pwrite) dift_dtsr <= tgt_apb[i].pwdata;
+                                else                   tgt_apb[i].prdata <= dift_dtsr;
+                            end
+                            2'd1: begin // MPM
+                                if (tgt_apb[i].pwrite) dift_mpm <= tgt_apb[i].pwdata;
+                                else                   tgt_apb[i].prdata <= dift_mpm;
+                            end
+                            2'd2: begin // MPS (sticky, W1C)
+                                if (tgt_apb[i].pwrite) begin
+                                    for (int periph_idx = 0; periph_idx < NO_LSPAS; periph_idx++) begin
+                                        if (tgt_apb[i].pwdata[DIFT_LSPA_S+periph_idx]) begin
+                                            dift_mps[DIFT_LSPA_S+periph_idx] <= lspa_guard_exc[periph_idx];
+                                        end
+                                    end
+                                    for (int periph_idx = 0; periph_idx < NO_LSPBS; periph_idx++) begin
+                                        if (tgt_apb[i].pwdata[DIFT_LSPB_S+periph_idx]) begin
+                                            dift_mps[DIFT_LSPB_S+periph_idx] <= lspb_guard_exc[periph_idx];
+                                        end
+                                    end
+                                end
+                                else tgt_apb[i].prdata <= dift_mps;
+                            end
+                            default: begin
+                                tgt_apb[i].prdata <= '0;
+                            end
+                        endcase
+                        tgt_apb[i].pready  <= '1;
+                        tgt_apb[i].pslverr <= '0;
+                    end
+                    else begin
+                        tgt_apb[i].pready <= '0;
+                    end
+                end
+            end
+
+            always_comb begin
+                lspa_taint_en = '0;
+                lspb_taint_en = '0;
+                lspa_guard_en = '0;
+                lspb_guard_en = '0;
+
+                for (int periph_idx = 0; periph_idx < NO_LSPAS; periph_idx++) begin
+                    lspa_taint_en[periph_idx] = dift_dtsr[DIFT_LSPA_S+periph_idx];
+                    lspa_guard_en[periph_idx] = dift_mpm [DIFT_LSPA_S+periph_idx];
+                end
+                for (int periph_idx = 0; periph_idx < NO_LSPBS; periph_idx++) begin
+                    lspb_taint_en[periph_idx] = dift_dtsr[DIFT_LSPB_S+periph_idx];
+                    lspb_guard_en[periph_idx] = dift_mpm [DIFT_LSPB_S+periph_idx];
+                end
+            end
+        end
+`endif
 
     endgenerate
 

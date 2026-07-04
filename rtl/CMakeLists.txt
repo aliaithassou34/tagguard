@@ -48,6 +48,7 @@ adam_sv_add_library(adam_rtl
     fabric/adam_fabric_lspx.sv
     fabric/adam_fabric.sv
 
+    adam_dift_periph_guard.sv
     adam_mem.sv
     adam.sv
     adam_clk_div.sv

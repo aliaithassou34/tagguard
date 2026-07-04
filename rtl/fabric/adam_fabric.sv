@@ -34,6 +34,13 @@ module adam_fabric #(
     APB.Master      lsdom_lspa [NO_LSPAS+1],
     APB.Master      lsdom_lspb [NO_LSPBS+1],
 
+    input logic [NO_LSPAS:0] lspa_taint_en,
+    input logic [NO_LSPBS:0] lspb_taint_en,
+    input logic [NO_LSPAS:0] lspa_guard_en,
+    input logic [NO_LSPBS:0] lspb_guard_en,
+    output logic [NO_LSPAS:0] lspa_guard_exc,
+    output logic [NO_LSPBS:0] lspb_guard_exc,
+
     // hsdom ==================================================================
     
     ADAM_SEQ.Slave   hsdom_seq,
@@ -55,7 +62,10 @@ module adam_fabric #(
 
     `ADAM_AXIL_I lsdom_to_lspa ();
     `ADAM_AXIL_I lsdom_to_lspb ();
-    
+
+    `ADAM_AXIL_I lspa_tainted ();
+    `ADAM_AXIL_I lspb_tainted ();
+
     adam_fabric_lsdom #(
         `ADAM_CFG_PARAMS_MAP
     ) adam_fabric_lsdom (
@@ -74,6 +84,22 @@ module adam_fabric #(
 
     generate
         if (EN_LSPA) begin
+            adam_dift_periph_guard #(
+                `ADAM_CFG_PARAMS_MAP,
+
+                .NO_MSTS (NO_LSPAS),
+                .INC     (MMAP_LSPA.inc)
+            ) adam_dift_periph_guard_lspa (
+                .clk_i (lsdom_seq.clk),
+                .rst_i (lsdom_seq.rst),
+
+                .slv         (lsdom_to_lspa),
+                .mst         (lspa_tainted),
+                .taint_en_i  (lspa_taint_en),
+                .guard_en_i  (lspa_guard_en),
+                .guard_exc_o (lspa_guard_exc)
+            );
+
             adam_fabric_lspx #(
                 `ADAM_CFG_PARAMS_MAP,
 
@@ -83,16 +109,34 @@ module adam_fabric #(
                 .seq   (lsdom_seq),
                 .pause (lsdom_pause_lspa),
 
-                .slv (lsdom_to_lspa),
+                .slv (lspa_tainted),
                 .mst (lsdom_lspa)
             );
         end
         else begin
             `ADAM_PAUSE_SLV_TIE_OFF(lsdom_pause_lspa);
             `ADAM_AXIL_SLV_TIE_OFF(lsdom_to_lspa);
+            `ADAM_AXIL_SLV_TIE_OFF(lspa_tainted);
+            assign lspa_guard_exc = '0;
         end
 
         if (EN_LSPB) begin
+            adam_dift_periph_guard #(
+                `ADAM_CFG_PARAMS_MAP,
+
+                .NO_MSTS (NO_LSPBS),
+                .INC     (MMAP_LSPB.inc)
+            ) adam_dift_periph_guard_lspb (
+                .clk_i (lsdom_seq.clk),
+                .rst_i (lsdom_seq.rst),
+
+                .slv         (lsdom_to_lspb),
+                .mst         (lspb_tainted),
+                .taint_en_i  (lspb_taint_en),
+                .guard_en_i  (lspb_guard_en),
+                .guard_exc_o (lspb_guard_exc)
+            );
+
             adam_fabric_lspx #(
                 `ADAM_CFG_PARAMS_MAP,
 
@@ -102,13 +146,15 @@ module adam_fabric #(
                 .seq   (lsdom_seq),
                 .pause (lsdom_pause_lspb),
 
-                .slv (lsdom_to_lspb),
+                .slv (lspb_tainted),
                 .mst (lsdom_lspb)
             );
         end
         else begin
             `ADAM_PAUSE_SLV_TIE_OFF(lsdom_pause_lspb);
             `ADAM_AXIL_SLV_TIE_OFF(lsdom_to_lspb);
+            `ADAM_AXIL_SLV_TIE_OFF(lspb_tainted);
+            assign lspb_guard_exc = '0;
         end
     endgenerate
 
@@ -139,7 +185,8 @@ module adam_fabric #(
     axi_lite_cut_intf #(
         .BYPASS     (0),
         .ADDR_WIDTH (ADDR_WIDTH),
-        .DATA_WIDTH (DATA_WIDTH)
+        .DATA_WIDTH (DATA_WIDTH),
+        .USER_WIDTH (`ADAM_DIFT_AXI_USER_W)
     ) cut_hsdom_to_lsdom (
         .clk_i  (lsdom_seq.clk),
         .rst_ni (!lsdom_seq.rst),
@@ -150,7 +197,8 @@ module adam_fabric #(
     axi_lite_cut_intf #(
         .BYPASS     (0),
         .ADDR_WIDTH (ADDR_WIDTH),
-        .DATA_WIDTH (DATA_WIDTH)
+        .DATA_WIDTH (DATA_WIDTH),
+        .USER_WIDTH (`ADAM_DIFT_AXI_USER_W)
     ) cut_lsdom_to_hsdom (
         .clk_i  (lsdom_seq.clk),
         .rst_ni (!lsdom_seq.rst),

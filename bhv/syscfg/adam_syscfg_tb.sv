@@ -106,6 +106,18 @@ module adam_syscfg_tb;
     ADAM_PAUSE hsp_pause [NO_HSPS+1] ();
     logic      hsp_irq   [NO_HSPS+1];
 
+`ifdef DIFT
+    logic [NO_LSPAS:0] lspa_taint_en;
+    logic [NO_LSPBS:0] lspb_taint_en;
+    logic [NO_LSPAS:0] lspa_guard_en;
+    logic [NO_LSPBS:0] lspb_guard_en;
+    logic [NO_LSPAS:0] lspa_guard_exc;
+    logic [NO_LSPBS:0] lspb_guard_exc;
+
+    assign lspa_guard_exc = '0;
+    assign lspb_guard_exc = '0;
+`endif
+
     adam_syscfg #(
         `ADAM_CFG_PARAMS_MAP
     ) dut (
@@ -163,6 +175,14 @@ module adam_syscfg_tb;
         .hsp_rst   (hsp_rst),
         .hsp_pause (hsp_pause),
         .hsp_irq   (hsp_irq)
+`ifdef DIFT
+    , .lspa_taint_en  (lspa_taint_en),
+    .lspb_taint_en  (lspb_taint_en),
+    .lspa_guard_en  (lspa_guard_en),
+    .lspb_guard_en  (lspb_guard_en),
+    .lspa_guard_exc (lspa_guard_exc),
+    .lspb_guard_exc (lspb_guard_exc)
+`endif
     ); 
 
     // tgt pause ==============================================================

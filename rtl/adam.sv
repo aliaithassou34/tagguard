@@ -120,6 +120,15 @@ module adam #(
     ADAM_PAUSE   lsdom_syscfg_pause ();
     `ADAM_AXIL_I lsdom_syscfg_axil ();
 
+`ifdef DIFT
+    logic [NO_LSPAS:0] lspa_taint_en;
+    logic [NO_LSPBS:0] lspb_taint_en;
+    logic [NO_LSPAS:0] lspa_guard_en;
+    logic [NO_LSPBS:0] lspb_guard_en;
+    logic [NO_LSPAS:0] lspa_guard_exc;
+    logic [NO_LSPBS:0] lspb_guard_exc;
+`endif
+
     ADAM_PAUSE   hsdom_debug_pause ();
     `ADAM_AXIL_I hsdom_debug_mst_axil ();
     `ADAM_AXIL_I hsdom_debug_slv_axil ();
@@ -172,6 +181,11 @@ module adam #(
     DATA_T lsdom_lpmem_wdata;
     DATA_T lsdom_lpmem_rdata;
 
+`ifdef DIFT
+    logic [STRB_WIDTH-1:0] lsdom_lpmem_tag_wdata;
+    logic [STRB_WIDTH-1:0] lsdom_lpmem_tag_rdata;
+`endif
+
     if (EN_LPMEM) begin
         assign lsdom_lpmem_seq.clk = lsdom_seq.clk;
         assign lsdom_lpmem_seq.rst = lsdom_seq.rst || lsdom_lpmem_rst;
@@ -190,6 +204,11 @@ module adam #(
             .mem_be    (lsdom_lpmem_be),
             .mem_wdata (lsdom_lpmem_wdata),
             .mem_rdata (lsdom_lpmem_rdata)
+
+`ifdef DIFT
+            , .mem_tag_wdata (lsdom_lpmem_tag_wdata),
+            .mem_tag_rdata (lsdom_lpmem_tag_rdata)
+`endif
         );
 
         adam_mem #(
@@ -208,6 +227,11 @@ module adam #(
             .be    (lsdom_lpmem_be),
             .wdata (lsdom_lpmem_wdata),
             .rdata (lsdom_lpmem_rdata)
+
+`ifdef DIFT
+            , .tag_wdata (lsdom_lpmem_tag_wdata),
+            .tag_rdata (lsdom_lpmem_tag_rdata)
+`endif
         );
     end
     else begin
@@ -365,6 +389,11 @@ module adam #(
     DATA_T hsdom_mem_wdata [NO_MEMS+1];
     DATA_T hsdom_mem_rdata [NO_MEMS+1];
 
+`ifdef DIFT
+    logic [STRB_WIDTH-1:0] hsdom_mem_tag_wdata [NO_MEMS+1];
+    logic [STRB_WIDTH-1:0] hsdom_mem_tag_rdata [NO_MEMS+1];
+`endif
+
     for (genvar i = 0; i < NO_MEMS; i++) begin
         assign hsdom_mem_seq[i].clk = lsdom_seq.clk;
         assign hsdom_mem_seq[i].rst = lsdom_seq.rst || hsdom_mem_rst[i];
@@ -383,6 +412,11 @@ module adam #(
             .mem_be    (hsdom_mem_be[i]),
             .mem_wdata (hsdom_mem_wdata[i]),
             .mem_rdata (hsdom_mem_rdata[i])
+
+`ifdef DIFT
+            , .mem_tag_wdata (hsdom_mem_tag_wdata[i]),
+            .mem_tag_rdata (hsdom_mem_tag_rdata[i])
+`endif
         );
 
         if (i == 0 && MEM_SIZE[i] == 0) begin
@@ -398,6 +432,10 @@ module adam #(
                 .wdata (hsdom_mem_wdata[i]),
                 .rdata (hsdom_mem_rdata[i])
             );
+`ifdef DIFT
+            // ROM has no tag storage
+            assign hsdom_mem_tag_rdata[i] = '0;
+`endif
         end
         else begin
             adam_mem #(
@@ -420,6 +458,11 @@ module adam #(
                 .be    (hsdom_mem_be   [i]),
                 .wdata (hsdom_mem_wdata[i]),
                 .rdata (hsdom_mem_rdata[i])
+
+`ifdef DIFT
+                , .tag_wdata (hsdom_mem_tag_wdata[i]),
+                .tag_rdata (hsdom_mem_tag_rdata[i])
+`endif
             );
         end
     end
@@ -579,6 +622,15 @@ module adam #(
         .hsp_rst   (hsdom_hsp_rst),
         .hsp_pause (hsdom_hsp_pause),
         .hsp_irq   (hsdom_hsp_irq)
+
+`ifdef DIFT
+        , .lspa_taint_en (lspa_taint_en),
+        .lspb_taint_en (lspb_taint_en),
+        .lspa_guard_en (lspa_guard_en),
+        .lspb_guard_en (lspb_guard_en),
+        .lspa_guard_exc (lspa_guard_exc),
+        .lspb_guard_exc (lspb_guard_exc)
+`endif
     );
 
     // adam_fabric ============================================================
@@ -597,6 +649,22 @@ module adam #(
         .lsdom_syscfg (lsdom_syscfg_axil),
         .lsdom_lspa   (lsdom_lspa_apb),
         .lsdom_lspb   (lsdom_lspb_apb),
+
+`ifdef DIFT
+        .lspa_taint_en (lspa_taint_en),
+        .lspb_taint_en (lspb_taint_en),
+        .lspa_guard_en (lspa_guard_en),
+        .lspb_guard_en (lspb_guard_en),
+        .lspa_guard_exc (lspa_guard_exc),
+        .lspb_guard_exc (lspb_guard_exc),
+`else
+        .lspa_taint_en ('0),
+        .lspb_taint_en ('0),
+        .lspa_guard_en ('0),
+        .lspb_guard_en ('0),
+        .lspa_guard_exc (),
+        .lspb_guard_exc (),
+`endif
 
         .hsdom_seq   (hsdom_seq),
         .hsdom_pause (fab_hsdom_pause),

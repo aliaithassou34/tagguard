@@ -23,11 +23,13 @@
     assign slv.aw_ready = 1'b1; \
     assign slv.w_ready  = 1'b1; \
     assign slv.b_resp   = 2'b00; \
+    assign slv.b_user   = '0; \
     assign slv.b_valid  = 1'b1; \
     \
     assign slv.ar_ready = 1'b1; \
     assign slv.r_data   = value; \
     assign slv.r_resp   = 2'b00; \
+    assign slv.r_user   = '0; \
     assign slv.r_valid  = 1'b1;
 
 `define APB_SLV_STATIC(slv, value) \
@@ -249,6 +251,13 @@ module adam_fabric_tb;
         .lsdom_syscfg (lsdom_syscfg),
         .lsdom_lspa   (lsdom_lspa),
         .lsdom_lspb   (lsdom_lspb),
+
+        .lspa_taint_en  ('0),
+        .lspb_taint_en  ('0),
+        .lspa_guard_en  ('0),
+        .lspb_guard_en  ('0),
+        .lspa_guard_exc (),
+        .lspb_guard_exc (),
 
         .hsdom_seq   (hsdom_seq),
         .hsdom_pause (hsdom_pause),
