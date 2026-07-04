@@ -86,6 +86,16 @@ module adam_periph_uart #(
     logic tx_o;
     logic rx_i;
 
+    // Effective cycles-per-bit. In simulation it is capped so console UART
+    // traffic does not dominate simulation time; synthesis uses it unchanged.
+    DATA_T baud_rate_eff;
+`ifdef SYNTHESIS
+    assign baud_rate_eff = baud_rate;
+`else
+    assign baud_rate_eff = (baud_rate > `ADAM_UART_SIM_CYCLES_PER_BIT)
+                         ? `ADAM_UART_SIM_CYCLES_PER_BIT : baud_rate;
+`endif
+
     adam_periph_uart_tx #(
         .DATA_WIDTH(DATA_WIDTH)
     ) adam_periph_uart_tx (
@@ -96,7 +106,7 @@ module adam_periph_uart #(
         .parity_control (parity_control),
         .data_length    (data_length),
         .stop_bits      (stop_bits),
-        .baud_rate      (baud_rate),
+        .baud_rate      (baud_rate_eff),
 
         .slv (tx_stream),
 
@@ -113,7 +123,7 @@ module adam_periph_uart #(
         .parity_control (parity_control),
         .data_length    (data_length),
         .stop_bits      (stop_bits),
-        .baud_rate      (baud_rate),
+        .baud_rate      (baud_rate_eff),
 
         .mst (rx_stream),
     

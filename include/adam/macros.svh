@@ -6,6 +6,11 @@
 `define ADAM_COMMA ,
 `define ADAM_SEMICOLON ;
 
+// In simulation, cap the UART cycles-per-bit so console I/O and payload
+// transfers do not dominate simulation time. Synthesis is unaffected.
+// Kept well above the RX oversampling margin so framing stays reliable.
+`define ADAM_UART_SIM_CYCLES_PER_BIT 64
+
 // ADAM_CFG ===================================================================
 
 `define ADAM_CFG_PARAMS_GENERIC(__opt, __sep) \

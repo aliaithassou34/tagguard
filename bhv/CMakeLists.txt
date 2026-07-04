@@ -51,6 +51,8 @@ adam_sv_add_library(adam_bhv
     syscfg/adam_syscfg_tgt_tb.sv
     syscfg/adam_syscfg_tb.sv
 
+    adam_dift_tb.sv
+
     adam_clk_div_tb.sv
     adam_tb.sv
 )
