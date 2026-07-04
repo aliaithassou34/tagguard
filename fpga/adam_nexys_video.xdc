@@ -6,6 +6,8 @@ set_property CFGBVS VCCO        [current_design]
 set_property -dict {PACKAGE_PIN R4 IOSTANDARD LVCMOS33} [get_ports clk]
 create_clock -period 10.000 -name clk -waveform {0.000 5.000} -add [get_ports clk]
 
+create_clock -name clk_50 -period 20.000 -waveform {0.000 10.000} [get_pins {debug_req_q_reg_i_2/O}]
+set_clock_groups -asynchronous -group [get_clocks clk] -group [get_clocks clk_50]
 # reset ===============================================================================================================
 
 set_property -dict {PACKAGE_PIN G4 IOSTANDARD LVCMOS15} [get_ports rstn]
