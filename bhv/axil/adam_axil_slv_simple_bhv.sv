@@ -33,8 +33,9 @@ module adam_axil_slv_simple_bhv #(
     import adam_axil_slv_bhv::*;
     
     AXI_LITE_DV #(
-        .AXI_ADDR_WIDTH(ADDR_WIDTH),
-        .AXI_DATA_WIDTH(DATA_WIDTH)
+        .AXI_ADDR_WIDTH (ADDR_WIDTH),
+        .AXI_DATA_WIDTH (DATA_WIDTH),
+        .AXI_USER_WIDTH (`ADAM_DIFT_AXI_USER_W)
     ) slv_dv (seq.clk);
 
     adam_axil_slv_bhv #(

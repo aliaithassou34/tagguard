@@ -34,6 +34,11 @@ module adam_obi_to_axil #(
     input  logic  rready,
     output DATA_T rdata,
 
+`ifdef DIFT
+    input  logic [STRB_WIDTH-1:0] tag_wdata,
+    output logic [STRB_WIDTH-1:0] tag_rdata,
+`endif
+
     AXI_LITE.Master axil 
 );
 
@@ -136,8 +141,18 @@ module adam_obi_to_axil #(
 
         axil.ar_addr = addr;
         axil.ar_prot = 0;
+        axil.ar_user = '0;
 
         rdata = axil.r_data;
+
+`ifdef DIFT
+        axil.aw_user = tag_wdata;
+        axil.w_user  = tag_wdata;
+        tag_rdata    = axil.r_user;
+`else
+        axil.aw_user = '0;
+        axil.w_user  = '0;
+`endif
 
         // force alignment
         axil.aw_addr[$clog2(STRB_WIDTH)-1:0] = 0;

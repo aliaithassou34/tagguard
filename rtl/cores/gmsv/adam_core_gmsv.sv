@@ -173,6 +173,11 @@ module adam_core_gmsv
         .rvalid (inst_rvalid),
         .rready (inst_rready),
         .rdata  (inst_rdata)
+
+`ifdef DIFT
+        , .tag_wdata ('0),
+        .tag_rdata ()
+`endif
     );
 
     `ADAM_AXIL_I axil_data_core ();
@@ -194,6 +199,11 @@ module adam_core_gmsv
         .rvalid (data_rvalid),
         .rready (data_rready),
         .rdata  (data_rdata)
+
+`ifdef DIFT
+        , .tag_wdata ('0),
+        .tag_rdata ()
+`endif
     );
 
     // gmsv ===================================================================

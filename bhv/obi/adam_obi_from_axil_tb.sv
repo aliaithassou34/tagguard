@@ -98,6 +98,11 @@ module adam_obi_from_axil_tb;
         .rvalid (obi_resp.valid),
         .rready (obi_resp.ready),
         .rdata  (obi_resp.data.rdata)
+`ifdef DIFT
+        ,
+        .tag_wdata (),
+        .tag_rdata ('0)
+`endif
     );
 
     // test ===================================================================

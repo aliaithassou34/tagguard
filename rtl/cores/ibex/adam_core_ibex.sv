@@ -159,6 +159,11 @@ module adam_core_ibex #(
         .rvalid (inst_rvalid_i),
         .rready (inst_rready_o),
         .rdata  (inst_rdata_i)
+
+`ifdef DIFT
+        , .tag_wdata ('0),
+        .tag_rdata ()
+`endif
     );
 
     adam_obi_to_axil #(
@@ -179,6 +184,11 @@ module adam_core_ibex #(
         .rvalid (data_rvalid_i),
         .rready (data_rready_o),
         .rdata  (data_rdata_i)
+
+`ifdef DIFT
+        , .tag_wdata ('0),
+        .tag_rdata ()
+`endif
     );
 
     always_comb begin

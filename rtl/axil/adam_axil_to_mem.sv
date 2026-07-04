@@ -32,6 +32,12 @@ module adam_axil_to_mem #(
     output STRB_T mem_be,
     output DATA_T mem_wdata,
     input  DATA_T mem_rdata
+
+`ifdef DIFT
+    ,
+    output logic [STRB_WIDTH-1:0] mem_tag_wdata,
+    input  logic [STRB_WIDTH-1:0] mem_tag_rdata
+`endif
 );
 
     logic  obi_req;
@@ -39,6 +45,12 @@ module adam_axil_to_mem #(
     logic  obi_rvalid;
     logic  obi_rready;
     DATA_T obi_rdata;
+
+`ifdef DIFT
+    logic [STRB_WIDTH-1:0] obi_tag_wdata;
+    logic [STRB_WIDTH-1:0] obi_tag_rdata;
+    logic [STRB_WIDTH-1:0] buf_tag_rdata;
+`endif
     
     logic  buf_write;
     DATA_T buf_rdata;
@@ -62,11 +74,22 @@ module adam_axil_to_mem #(
         .rvalid (obi_rvalid),
         .rready (obi_rready),
         .rdata  (obi_rdata)
+
+`ifdef DIFT
+        ,
+        .tag_wdata (obi_tag_wdata),
+        .tag_rdata (obi_tag_rdata)
+`endif
     );
 
     assign mem_req = obi_req && obi_gnt;
     assign obi_gnt = !obi_rvalid;
     assign obi_rdata = (buf_write) ? mem_rdata : buf_rdata;
+
+`ifdef DIFT
+    assign mem_tag_wdata = obi_tag_wdata;
+    assign obi_tag_rdata = (buf_write) ? mem_tag_rdata : buf_tag_rdata;
+`endif
 
     always_ff @(posedge seq.clk) begin
         if (seq.rst) begin
@@ -85,11 +108,19 @@ module adam_axil_to_mem #(
 
     always @(posedge seq.clk) begin
         if (seq.rst) begin
-            buf_write <= '0;
-            buf_rdata <= '0;
+            buf_write    <= '0;
+            buf_rdata    <= '0;
+`ifdef DIFT
+            buf_tag_rdata <= '0;
+`endif
         end
         else begin
-            if (buf_write) buf_rdata <= mem_rdata;
+            if (buf_write) begin
+                buf_rdata     <= mem_rdata;
+`ifdef DIFT
+                buf_tag_rdata <= mem_tag_rdata;
+`endif
+            end
             buf_write <= mem_req;
         end
     end

@@ -144,26 +144,37 @@
 
 // ADAM_AXIL ==================================================================
 
+`ifdef DIFT
+  `define ADAM_DIFT_AXI_USER_W 4
+`else
+  `define ADAM_DIFT_AXI_USER_W 0
+`endif
+
 `define ADAM_AXIL_I AXI_LITE #( \
     .AXI_ADDR_WIDTH (CFG.ADDR_WIDTH), \
-    .AXI_DATA_WIDTH (CFG.DATA_WIDTH) \
+    .AXI_DATA_WIDTH (CFG.DATA_WIDTH), \
+    .AXI_USER_WIDTH (`ADAM_DIFT_AXI_USER_W) \
 )
 
 `define ADAM_AXIL_DV_I AXI_LITE_DV #( \
     .AXI_ADDR_WIDTH (ADDR_WIDTH), \
-    .AXI_DATA_WIDTH (DATA_WIDTH) \
+    .AXI_DATA_WIDTH (DATA_WIDTH), \
+    .AXI_USER_WIDTH (`ADAM_DIFT_AXI_USER_W) \
 )
 
 `define ADAM_AXIL_MST_TIE_OFF(mst) \
     assign mst.aw_addr = '0; \
     assign mst.aw_prot = 3'b000; \
+    assign mst.aw_user = '0; \
     assign mst.aw_valid = 1'b0; \
     assign mst.w_data = '0; \
     assign mst.w_strb = '0; \
+    assign mst.w_user = '0; \
     assign mst.w_valid = 1'b0; \
     assign mst.b_ready = 1'b0; \
     assign mst.ar_addr = '0; \
     assign mst.ar_prot = 3'b000; \
+    assign mst.ar_user = '0; \
     assign mst.ar_valid = 1'b0; \
     assign mst.r_ready = 1'b0;
 
@@ -171,21 +182,25 @@
     assign slv.aw_ready = 1'b0; \
     assign slv.w_ready = 1'b0; \
     assign slv.b_resp = 2'b11; \
+    assign slv.b_user = '0; \
     assign slv.b_valid = 1'b1; \
     assign slv.ar_ready = 1'b0; \
     assign slv.r_data = '0; \
     assign slv.r_resp = 2'b11; \
+    assign slv.r_user = '0; \
     assign slv.r_valid = 1'b1;
 
 `define ADAM_AXIL_OFFSET(dst, src, offset) \
     assign dst.aw_addr = src.aw_addr - (offset); \
     assign dst.aw_prot = src.aw_prot; \
+    assign dst.aw_user = src.aw_user; \
     assign dst.aw_valid = src.aw_valid; \
     assign src.aw_ready = dst.aw_ready; \
     `AXI_LITE_ASSIGN_W(dst, src); \
     `AXI_LITE_ASSIGN_B(src, dst); \
     assign dst.ar_addr = src.ar_addr - (offset); \
     assign dst.ar_prot = src.ar_prot; \
+    assign dst.ar_user = src.ar_user; \
     assign dst.ar_valid = src.ar_valid; \
     assign src.ar_ready = dst.ar_ready; \
     `AXI_LITE_ASSIGN_R(src, dst);

@@ -52,12 +52,14 @@ module adam_axil_ram_tb;
 
     AXI_LITE #(
         .AXI_ADDR_WIDTH (ADDR_WIDTH),
-        .AXI_DATA_WIDTH (DATA_WIDTH)
+        .AXI_DATA_WIDTH (DATA_WIDTH),
+        .AXI_USER_WIDTH (`ADAM_DIFT_AXI_USER_W)
     ) axil ();
     
     AXI_LITE_DV #(
-        .AXI_ADDR_WIDTH(ADDR_WIDTH),
-        .AXI_DATA_WIDTH(DATA_WIDTH)
+        .AXI_ADDR_WIDTH (ADDR_WIDTH),
+        .AXI_DATA_WIDTH (DATA_WIDTH),
+        .AXI_USER_WIDTH (`ADAM_DIFT_AXI_USER_W)
     ) axil_dv (seq.clk);
 
     `AXI_LITE_ASSIGN(axil, axil_dv);

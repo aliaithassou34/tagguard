@@ -158,7 +158,7 @@ module adam_debug #(
     // obi to mem ============================================================
 
     ADAM_PAUSE pause_axil_to_mem ();
-    
+
     adam_axil_to_mem #(
         `ADAM_CFG_PARAMS_MAP,
 
@@ -175,6 +175,12 @@ module adam_debug #(
         .mem_be    (dm_slv_be),
         .mem_wdata (dm_slv_wdata),
         .mem_rdata (dm_slv_rdata)
+
+`ifdef DIFT
+        // Debug module doesn't use DIFT tags
+        , .mem_tag_wdata (),
+        .mem_tag_rdata ('0)
+`endif
     );
 
     // obi to axil ============================================================
@@ -199,7 +205,12 @@ module adam_debug #(
         .rready ('1),
         .rdata  (dm_mst_rdata),
 
-        .axil (axil_mst) 
+        .axil (axil_mst)
+
+`ifdef DIFT
+        , .tag_wdata ('0),
+        .tag_rdata ()
+`endif
     );
 
     // pause ==================================================================

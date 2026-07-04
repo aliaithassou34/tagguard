@@ -3,6 +3,7 @@ set(AXI_SOURCE_DIR "${CMAKE_SOURCE_DIR}/third_party/axi")
 adam_git_submodule_ensure("${AXI_SOURCE_DIR}" RECURSIVE
   PATCHES
     "${CMAKE_SOURCE_DIR}/patches/axi/0001-Fix-Questa-Typedef.patch"
+    "${CMAKE_SOURCE_DIR}/patches/axi/0002-Add-AXI-Lite-user-signal-support.patch"
 )
 
 adam_sv_add_library(axi_rtl

@@ -35,12 +35,14 @@ module adam_axil_pause_tb;
 
     AXI_LITE #(
         .AXI_ADDR_WIDTH (ADDR_WIDTH),
-        .AXI_DATA_WIDTH (DATA_WIDTH)
+        .AXI_DATA_WIDTH (DATA_WIDTH),
+        .AXI_USER_WIDTH (`ADAM_DIFT_AXI_USER_W)
     ) slave ();
     
     AXI_LITE_DV #(
-        .AXI_ADDR_WIDTH(ADDR_WIDTH),
-        .AXI_DATA_WIDTH(DATA_WIDTH)
+        .AXI_ADDR_WIDTH (ADDR_WIDTH),
+        .AXI_DATA_WIDTH (DATA_WIDTH),
+        .AXI_USER_WIDTH (`ADAM_DIFT_AXI_USER_W)
     ) slave_dv (seq.clk);
 
     `AXI_LITE_ASSIGN(slave_dv, slave);
@@ -57,12 +59,14 @@ module adam_axil_pause_tb;
 
     AXI_LITE #(
         .AXI_ADDR_WIDTH (ADDR_WIDTH),
-        .AXI_DATA_WIDTH (DATA_WIDTH)
+        .AXI_DATA_WIDTH (DATA_WIDTH),
+        .AXI_USER_WIDTH (`ADAM_DIFT_AXI_USER_W)
     ) master ();
     
     AXI_LITE_DV #(
-        .AXI_ADDR_WIDTH(ADDR_WIDTH),
-        .AXI_DATA_WIDTH(DATA_WIDTH)
+        .AXI_ADDR_WIDTH (ADDR_WIDTH),
+        .AXI_DATA_WIDTH (DATA_WIDTH),
+        .AXI_USER_WIDTH (`ADAM_DIFT_AXI_USER_W)
     ) master_dv (seq.clk);
 
     `AXI_LITE_ASSIGN(master, master_dv);

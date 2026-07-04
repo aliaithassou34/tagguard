@@ -39,6 +39,8 @@ module adam_unwrap #(
     output STRB_T           lsdom_lpmem_be,
     output DATA_T           lsdom_lpmem_wdata,
     input  DATA_T           lsdom_lpmem_rdata,
+    output STRB_T           lsdom_lpmem_tag_wdata,
+    input  STRB_T           lsdom_lpmem_tag_rdata,
 
     // hsdom ===============================
     // Slave Seq Interface
@@ -52,6 +54,8 @@ module adam_unwrap #(
     output STRB_T           hsdom_mem_be    [NO_MEMS+1],
     output DATA_T           hsdom_mem_wdata [NO_MEMS+1],
     input  DATA_T           hsdom_mem_rdata [NO_MEMS+1],
+    output STRB_T           hsdom_mem_tag_wdata [NO_MEMS+1],
+    input  STRB_T           hsdom_mem_tag_rdata [NO_MEMS+1],
 
     // jtag ================================
     input  logic            jtag_trst_n,
@@ -299,7 +303,10 @@ module adam_unwrap #(
             .mem_we    (lsdom_lpmem_we),
             .mem_be    (lsdom_lpmem_be),
             .mem_wdata (lsdom_lpmem_wdata),
-            .mem_rdata (lsdom_lpmem_rdata)
+            .mem_rdata (lsdom_lpmem_rdata),
+
+            .mem_tag_wdata (lsdom_lpmem_tag_wdata),
+            .mem_tag_rdata (lsdom_lpmem_tag_rdata)
         );
     
     logic        hsdom_mem_rst   [NO_MEMS+1];
@@ -335,7 +342,10 @@ module adam_unwrap #(
             .mem_we    (hsdom_mem_we[i]),
             .mem_be    (hsdom_mem_be[i]),
             .mem_wdata (hsdom_mem_wdata[i]),
-            .mem_rdata (hsdom_mem_rdata[i])
+            .mem_rdata (hsdom_mem_rdata[i]),
+
+            .mem_tag_wdata (hsdom_mem_tag_wdata[i]),
+            .mem_tag_rdata (hsdom_mem_tag_rdata[i])
         );
     end
     endgenerate

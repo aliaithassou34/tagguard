@@ -75,11 +75,16 @@ module adam_axil_apb_bridge #(
         logic  pslverr;
     } apb_resp_t;
 
-    `AXI_LITE_TYPEDEF_AW_CHAN_T(aw_chan_t, ADDR_T);
-    `AXI_LITE_TYPEDEF_W_CHAN_T(w_chan_t, DATA_T, STRB_T);
-    `AXI_LITE_TYPEDEF_B_CHAN_T(b_chan_t);
-    `AXI_LITE_TYPEDEF_AR_CHAN_T(ar_chan_t, ADDR_T);
-    `AXI_LITE_TYPEDEF_R_CHAN_T(r_chan_t, DATA_T);
+`ifdef DIFT
+    typedef logic [`ADAM_DIFT_AXI_USER_W-1:0] user_t;
+`else
+    typedef logic [0:0] user_t;
+`endif
+    `AXI_LITE_TYPEDEF_AW_CHAN_T(aw_chan_t, ADDR_T, user_t);
+    `AXI_LITE_TYPEDEF_W_CHAN_T(w_chan_t, DATA_T, STRB_T, user_t);
+    `AXI_LITE_TYPEDEF_B_CHAN_T(b_chan_t, user_t);
+    `AXI_LITE_TYPEDEF_AR_CHAN_T(ar_chan_t, ADDR_T, user_t);
+    `AXI_LITE_TYPEDEF_R_CHAN_T(r_chan_t, DATA_T, user_t);
     `AXI_LITE_TYPEDEF_REQ_T(axil_req_t, aw_chan_t, w_chan_t, ar_chan_t);
     `AXI_LITE_TYPEDEF_RESP_T(axil_resp_t, b_chan_t, r_chan_t);
 

@@ -171,6 +171,11 @@ module adam_core_cv32e40x #(
         .rvalid (inst_rvalid),
         .rready (inst_rready),
         .rdata  (inst_rdata)
+
+`ifdef DIFT
+        , .tag_wdata ('0),
+        .tag_rdata ()
+`endif
     );
 
     adam_obi_to_axil #(
@@ -190,6 +195,11 @@ module adam_core_cv32e40x #(
         .rvalid (data_rvalid),
         .rready (data_rready),
         .rdata  (data_rdata)
+
+`ifdef DIFT
+        , .tag_wdata ('0),
+        .tag_rdata ()
+`endif
     );
 
     // pause ==================================================================

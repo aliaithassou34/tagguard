@@ -94,6 +94,14 @@ def build_syscfg_tgt(
     return syscfg_tgt
 
 
+def add_dift_lspx_flags(register: Register, cfg: Cfg, lspx: str, suffix: str) -> None:
+    prefix = lspx.upper()
+    for periph in ["gpio", "spi", "timer", "uart"]:
+        periph_prefix = periph.upper()
+        for idx in range(cfg[f"no_{lspx}_{periph}s"]):
+            register.add(Flag(f"{prefix}_{periph_prefix}{idx}_{suffix}"))
+
+
 def build_syscfg_t(cfg: Cfg) -> None:
     syscfg = Struct("ral_syscfg_t")
 
@@ -121,6 +129,23 @@ def build_syscfg_t(cfg: Cfg) -> None:
         s.add(build_syscfg_tgt("TIMER", cfg[f"no_{lspx}_timers"]))
         s.add(build_syscfg_tgt("UART", cfg[f"no_{lspx}_uarts"]))
         syscfg.add(s)
+
+    # DIFT Security-Wrapper Registers — appended as last target
+    dift = Struct("TAINT_SRC")
+    dtsr = Register("DTSR")
+    add_dift_lspx_flags(dtsr, cfg, "lspa", "TAINT_EN")
+    add_dift_lspx_flags(dtsr, cfg, "lspb", "TAINT_EN")
+    dift.add(dtsr)
+    mpm = Register("MPM")
+    add_dift_lspx_flags(mpm, cfg, "lspa", "GUARD_EN")
+    add_dift_lspx_flags(mpm, cfg, "lspb", "GUARD_EN")
+    dift.add(mpm)
+    mps = Register("MPS")
+    add_dift_lspx_flags(mps, cfg, "lspa", "GUARD_FIRED")
+    add_dift_lspx_flags(mps, cfg, "lspb", "GUARD_FIRED")
+    dift.add(mps)
+    dift.add(Register(None))  # padding to 4 registers per slot
+    syscfg.add(dift)
 
     return syscfg
 

@@ -49,25 +49,30 @@ module adam_axil_pause #(
 
         mst.aw_addr  = slv.aw_addr;
         mst.aw_prot  = slv.aw_prot;
+        mst.aw_user  = slv.aw_user;
         mst.aw_valid = (aw_en && !aw_full) ? slv.aw_valid : 0;
         slv.aw_ready = (aw_en && !aw_full) ? mst.aw_ready : 0;
 
         mst.w_data  = slv.w_data;
         mst.w_strb  = slv.w_strb;
+        mst.w_user  = slv.w_user;
         mst.w_valid = (w_en && !w_full) ? slv.w_valid : 0;
         slv.w_ready = (w_en && !w_full) ? mst.w_ready : 0;
 
         slv.b_resp  = mst.b_resp;
+        slv.b_user  = mst.b_user;
         slv.b_valid = (b_en) ? mst.b_valid : 0;
         mst.b_ready = (b_en) ? slv.b_ready : 0;
 
         mst.ar_addr  = slv.ar_addr;
         mst.ar_prot  = slv.ar_prot;
+        mst.ar_user  = slv.ar_user;
         mst.ar_valid = (ar_en && !ar_full) ? slv.ar_valid : 0;
         slv.ar_ready = (ar_en && !ar_full) ? mst.ar_ready : 0;
 
         slv.r_data  = mst.r_data;
         slv.r_resp  = mst.r_resp;
+        slv.r_user  = mst.r_user;
         slv.r_valid = (r_en) ? mst.r_valid : 0;
         mst.r_ready = (r_en) ? slv.r_ready : 0;
     end

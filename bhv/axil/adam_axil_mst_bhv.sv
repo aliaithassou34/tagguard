@@ -50,8 +50,9 @@ class adam_axil_mst_bhv #(
     } r_t;
 
     typedef virtual AXI_LITE_DV #(
-        .AXI_ADDR_WIDTH (ADDR_WIDTH),
-        .AXI_DATA_WIDTH (DATA_WIDTH)
+        .AXI_ADDR_WIDTH  (ADDR_WIDTH),
+        .AXI_DATA_WIDTH  (DATA_WIDTH),
+        .AXI_USER_WIDTH  (`ADAM_DIFT_AXI_USER_W)
     ) axil_dv_t;
 
     aw_t aw_queue [$];
@@ -140,6 +141,7 @@ class adam_axil_mst_bhv #(
         // init value
         axil_dv.aw_addr  = 0;
         axil_dv.aw_prot  = 0;
+        axil_dv.aw_user  = 0;
         axil_dv.aw_valid = 0;
 
         forever begin
@@ -176,6 +178,7 @@ class adam_axil_mst_bhv #(
         // init value
         axil_dv.w_data  = 0;
         axil_dv.w_strb  = 0;
+        axil_dv.w_user  = 0;
         axil_dv.w_valid = 0;
 
         forever begin
@@ -245,6 +248,7 @@ class adam_axil_mst_bhv #(
         // init value
         axil_dv.ar_addr  = 0;
         axil_dv.ar_prot  = 0;
+        axil_dv.ar_user  = 0;
         axil_dv.ar_valid = 0;
 
         forever begin

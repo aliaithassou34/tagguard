@@ -35,6 +35,12 @@ module adam_obi_from_axil #(
     input  logic  rvalid,
     output logic  rready,
     input  DATA_T rdata
+
+`ifdef DIFT
+    ,
+    output logic [STRB_WIDTH-1:0] tag_wdata,
+    input  logic [STRB_WIDTH-1:0] tag_rdata
+`endif
 );
 
     localparam LOG_MAX_TRANS = $clog2(MAX_TRANS);
@@ -139,6 +145,10 @@ module adam_obi_from_axil #(
             axil_skid.w_ready  = '0;
             axil_skid.ar_ready = gnt;
         end
+
+`ifdef DIFT
+        tag_wdata = (axil_skid.aw_valid && axil_skid.w_valid) ? axil_skid.w_user : '0;
+`endif
     end
 
     // logic - resp ===========================================================
@@ -157,20 +167,28 @@ module adam_obi_from_axil #(
     always_comb begin
         if (circ_buf[pos_resp]) begin
             axil_skid.b_resp  = axi_pkg::RESP_OKAY;
+            axil_skid.b_user  = '0;
             axil_skid.b_valid = rvalid;
 
             axil_skid.r_data  = '0;
             axil_skid.r_resp  = '0;
+            axil_skid.r_user  = '0;
             axil_skid.r_valid = '0;
 
             rready = axil_skid.b_ready;
         end
         else begin
             axil_skid.b_resp  = '0;
+            axil_skid.b_user  = '0;
             axil_skid.b_valid = '0;
 
-            axil_skid.r_data = rdata;
-            axil_skid.r_resp = axi_pkg::RESP_OKAY;
+            axil_skid.r_data  = rdata;
+            axil_skid.r_resp  = axi_pkg::RESP_OKAY;
+`ifdef DIFT
+            axil_skid.r_user  = tag_rdata;
+`else
+            axil_skid.r_user  = '0;
+`endif
             axil_skid.r_valid = rvalid;
 
             rready = axil_skid.r_ready;
