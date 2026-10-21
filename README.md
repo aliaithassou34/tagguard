@@ -69,8 +69,8 @@ Each case pairs target `nexys_video_<name>` with test `adam_dift_tb.dift_<name>`
 ### Hardware overhead (Table V)
 
 ```bash
-adam build --dirty --targets nexys_video                  --enable-vivado  # base
-adam build --dirty --targets nexys_video_cwe_121_rop_cots --enable-vivado  # TagGuard
+adam build --dirty --targets nexys_video      --enable-vivado  # base
+adam build --dirty --targets nexys_video_dift --enable-vivado  # TagGuard
 ```
 
 Reports: `work/build/targets/<target>/vivado/adam.runs/impl_1/*_utilization_placed.rpt`
