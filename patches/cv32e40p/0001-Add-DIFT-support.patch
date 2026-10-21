@@ -276,10 +276,10 @@ index 0000000..645755d
 +endmodule
 \ No newline at end of file
 diff --git a/rtl/cv32e40p_controller.sv b/rtl/cv32e40p_controller.sv
-index 56cce62..9092708 100644
+index 56cce62..59567d1 100644
 --- a/rtl/cv32e40p_controller.sv
 +++ b/rtl/cv32e40p_controller.sv
-@@ -200,6 +200,12 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+@@ -200,6 +200,13 @@ module cv32e40p_controller import cv32e40p_pkg::*;
  
    // Performance Counters
    output logic        perf_pipeline_stall_o       // stall due to cv.elw extra cycles
@@ -287,22 +287,24 @@ index 56cce62..9092708 100644
 +`ifdef DIFT
 +  ,
 +  input  logic        branch_taken_ex_i_tag,
-+  output logic        pc_set_o_tag
++  output logic        pc_set_o_tag,
++  output logic        pc_set_exc_o_tag            // pc_set_o && pc_mux_o == PC_EXCEPTION
 +`endif
  );
  
    // FSM state encoding
-@@ -275,6 +281,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+@@ -275,6 +282,10 @@ module cv32e40p_controller import cv32e40p_pkg::*;
  
      pc_mux_o               = PC_BOOT;
      pc_set_o               = 1'b0;
 +`ifdef DIFT
 +    pc_set_o_tag           = 1'b0;
++    pc_set_exc_o_tag       = 1'b0;
 +`endif
      jump_done              = jump_done_q;
  
      ctrl_fsm_ns            = ctrl_fsm_cs;
-@@ -344,6 +353,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+@@ -344,6 +355,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
          instr_req_o   = 1'b1;
          pc_mux_o      = PC_BOOT;
          pc_set_o      = 1'b1;
@@ -312,7 +314,17 @@ index 56cce62..9092708 100644
          if (debug_req_pending) begin
              ctrl_fsm_ns = DBG_TAKEN_IF;
              debug_force_wakeup_n = 1'b1;
-@@ -431,15 +443,32 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+@@ -405,6 +419,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+ 
+           pc_set_o          = 1'b1;
+           pc_mux_o          = PC_EXCEPTION;
++`ifdef DIFT
++          pc_set_exc_o_tag          = 1'b1;
++`endif
+           exc_pc_mux_o      = EXC_PC_IRQ;
+           exc_cause_o       = irq_id_ctrl_i;
+           csr_irq_sec_o     = irq_sec_ctrl_i;
+@@ -431,15 +448,32 @@ module cv32e40p_controller import cv32e40p_pkg::*;
            begin //taken branch
              // there is a branch in the EX stage that is taken
  
@@ -351,7 +363,13 @@ index 56cce62..9092708 100644
            end  //taken branch
  
            else if (data_err_i)
-@@ -508,6 +537,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+@@ -505,9 +539,15 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+ 
+                 pc_set_o          = 1'b1;
+                 pc_mux_o          = PC_EXCEPTION;
++`ifdef DIFT
++                pc_set_exc_o_tag          = 1'b1;
++`endif
                  exc_pc_mux_o      = EXC_PC_IRQ;
                  exc_cause_o       = irq_id_ctrl_i;
                  csr_irq_sec_o     = irq_sec_ctrl_i;
@@ -361,7 +379,7 @@ index 56cce62..9092708 100644
  
                  // IRQ interface
                  irq_ack_o         = 1'b1;
-@@ -548,6 +580,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+@@ -548,6 +588,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
                        // if there is a jr stall, wait for it to be gone
                        if ((~jr_stall_o) && (~jump_done_q)) begin
                          pc_set_o    = 1'b1;
@@ -371,7 +389,96 @@ index 56cce62..9092708 100644
                          jump_done   = 1'b1;
                        end
                      end
-@@ -1137,6 +1172,11 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+@@ -720,6 +763,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+ 
+                 pc_set_o          = 1'b1;
+                 pc_mux_o          = PC_EXCEPTION;
++`ifdef DIFT
++                pc_set_exc_o_tag          = 1'b1;
++`endif
+                 exc_pc_mux_o      = EXC_PC_IRQ;
+                 exc_cause_o       = irq_id_ctrl_i;
+                 csr_irq_sec_o     = irq_sec_ctrl_i;
+@@ -939,6 +985,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+ 
+             pc_set_o          = 1'b1;
+             pc_mux_o          = PC_EXCEPTION;
++`ifdef DIFT
++            pc_set_exc_o_tag          = 1'b1;
++`endif
+             exc_pc_mux_o      = EXC_PC_IRQ;
+             exc_cause_o       = irq_id_ctrl_i;
+             csr_irq_sec_o     = irq_sec_ctrl_i;
+@@ -996,6 +1045,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+         if(data_err_q) begin
+             //PMP data_error
+             pc_mux_o              = PC_EXCEPTION;
++`ifdef DIFT
++            pc_set_exc_o_tag              = 1'b1;
++`endif
+             pc_set_o              = 1'b1;
+             trap_addr_mux_o       = TRAP_MACHINE;
+             //little hack during testing
+@@ -1006,6 +1058,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+         else if (is_fetch_failed_i) begin
+             //instruction fetch error
+             pc_mux_o              = PC_EXCEPTION;
++`ifdef DIFT
++            pc_set_exc_o_tag              = 1'b1;
++`endif
+             pc_set_o              = 1'b1;
+             trap_addr_mux_o       = TRAP_MACHINE;
+             exc_pc_mux_o          = debug_mode_q ? EXC_PC_DBE : EXC_PC_EXCEPTION;
+@@ -1016,6 +1071,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+           if(illegal_insn_q) begin
+               //exceptions
+               pc_mux_o              = PC_EXCEPTION;
++`ifdef DIFT
++              pc_set_exc_o_tag              = 1'b1;
++`endif
+               pc_set_o              = 1'b1;
+               trap_addr_mux_o       = TRAP_MACHINE;
+               exc_pc_mux_o          = debug_mode_q ? EXC_PC_DBE : EXC_PC_EXCEPTION;
+@@ -1027,6 +1085,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+               ebrk_insn_i: begin
+                   //ebreak
+                   pc_mux_o              = PC_EXCEPTION;
++`ifdef DIFT
++                  pc_set_exc_o_tag              = 1'b1;
++`endif
+                   pc_set_o              = 1'b1;
+                   trap_addr_mux_o       = TRAP_MACHINE;
+                   exc_pc_mux_o          = EXC_PC_EXCEPTION;
+@@ -1037,6 +1098,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+               ecall_insn_i: begin
+                   //ecall
+                   pc_mux_o              = PC_EXCEPTION;
++`ifdef DIFT
++                  pc_set_exc_o_tag              = 1'b1;
++`endif
+                   pc_set_o              = 1'b1;
+                   trap_addr_mux_o       = TRAP_MACHINE;
+                   exc_pc_mux_o          = debug_mode_q ? EXC_PC_DBE : EXC_PC_EXCEPTION;
+@@ -1101,12 +1165,18 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+           mret_dec_i: begin
+               //mret
+               pc_mux_o              = debug_mode_q ? PC_EXCEPTION : PC_MRET;
++`ifdef DIFT
++              pc_set_exc_o_tag              = debug_mode_q;
++`endif
+               pc_set_o              = 1'b1;
+               exc_pc_mux_o          = EXC_PC_DBE; // only used if in debug_mode
+           end
+           uret_dec_i: begin
+               //uret
+               pc_mux_o              = debug_mode_q ? PC_EXCEPTION : PC_URET;
++`ifdef DIFT
++              pc_set_exc_o_tag              = debug_mode_q;
++`endif
+               pc_set_o              = 1'b1;
+               exc_pc_mux_o          = EXC_PC_DBE; // only used if in debug_mode
+           end
+@@ -1137,6 +1207,11 @@ module cv32e40p_controller import cv32e40p_pkg::*;
            pc_mux_o = PC_BRANCH;
            pc_set_o = 1'b1;
          end
@@ -383,8 +490,28 @@ index 56cce62..9092708 100644
  
          ctrl_fsm_ns = DBG_FLUSH;
        end
+@@ -1155,6 +1230,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+         is_decoding_o     = 1'b0;
+         pc_set_o          = 1'b1;
+         pc_mux_o          = PC_EXCEPTION;
++`ifdef DIFT
++        pc_set_exc_o_tag          = 1'b1;
++`endif
+         exc_pc_mux_o      = EXC_PC_DBD;
+         // If not in debug mode then save cause and dpc csrs
+         // else it was an ebreak in debug mode, so don't update csrs
+@@ -1182,6 +1260,9 @@ module cv32e40p_controller import cv32e40p_pkg::*;
+         is_decoding_o     = 1'b0;
+         pc_set_o          = 1'b1;
+         pc_mux_o          = PC_EXCEPTION;
++`ifdef DIFT
++        pc_set_exc_o_tag          = 1'b1;
++`endif
+         exc_pc_mux_o      = EXC_PC_DBD;
+         csr_save_cause_o  = 1'b1;
+         debug_csr_save_o  = 1'b1;
 diff --git a/rtl/cv32e40p_core.sv b/rtl/cv32e40p_core.sv
-index 528ac1c..63807a4 100644
+index 528ac1c..09de90a 100644
 --- a/rtl/cv32e40p_core.sv
 +++ b/rtl/cv32e40p_core.sv
 @@ -97,6 +97,14 @@ module cv32e40p_core
@@ -402,7 +529,7 @@ index 528ac1c..63807a4 100644
  );
  
    import cv32e40p_pkg::*;
-@@ -352,12 +360,44 @@ module cv32e40p_core
+@@ -352,12 +360,47 @@ module cv32e40p_core
    logic [             31:0]       instr_addr_pmp;
    logic                           instr_err_pmp;
  
@@ -412,6 +539,7 @@ index 528ac1c..63807a4 100644
 +  logic                           jump_target_id_tag;
 +  logic                           jump_target_ex_tag;
 +  logic                           pc_set_tag;
++  logic                           pc_set_exc_tag;
 +  logic                           pc_id_tag;
 +  logic                           regfile_alu_wdata_fw_tag;
 +  logic                           regfile_alu_we_fw_tag;
@@ -442,12 +570,14 @@ index 528ac1c..63807a4 100644
    // PULP_SECURE == 0
    assign irq_sec_i = 1'b0;
 +`ifdef DIFT
-+  assign exception_ex_valid_tag = exception_tag & ex_valid & !(pc_set && (pc_mux_id == PC_EXCEPTION));
++  // pc_set_exc_tag == (pc_set && pc_mux_id == PC_EXCEPTION), but without the
++  // structural path through illegal_insn_i that made this a combinational loop.
++  assign exception_ex_valid_tag = exception_tag & ex_valid & !pc_set_exc_tag;
 +`endif
  
    // APU master signals
    assign apu_flags_o = apu_flags_ex;
-@@ -494,7 +534,16 @@ module cv32e40p_core
+@@ -494,7 +537,16 @@ module cv32e40p_core
  
        .if_busy_o   (if_busy),
        .perf_imiss_o(perf_imiss)
@@ -465,7 +595,7 @@ index 528ac1c..63807a4 100644
  
  
    /////////////////////////////////////////////////
-@@ -724,7 +773,38 @@ module cv32e40p_core
+@@ -724,7 +776,39 @@ module cv32e40p_core
  
        .perf_imiss_i(perf_imiss),
        .mcounteren_i(mcounteren)
@@ -486,6 +616,7 @@ index 528ac1c..63807a4 100644
 +      .jump_target_o_tag            ( jump_target_id_tag       ),
 +      .pc_ex_o_tag                  (                          ),
 +      .pc_set_o_tag                 ( pc_set_tag               ),
++      .pc_set_exc_o_tag             ( pc_set_exc_tag           ),
 +      .alu_operator_o_mode          ( alu_operator_mode        ),
 +      .store_dest_addr_ex_o_tag     ( store_dest_addr_tag      ),
 +      .store_source_ex_o_tag        ( store_source_tag         ),
@@ -505,7 +636,7 @@ index 528ac1c..63807a4 100644
  
  
    /////////////////////////////////////////////////////
-@@ -851,7 +931,34 @@ module cv32e40p_core
+@@ -851,7 +935,34 @@ module cv32e40p_core
        .ex_ready_o(ex_ready),
        .ex_valid_o(ex_valid),
        .wb_ready_i(lsu_ready_wb)
@@ -541,7 +672,7 @@ index 528ac1c..63807a4 100644
  
  
    ////////////////////////////////////////////////////////////////////////////////////////
-@@ -911,6 +1018,18 @@ module cv32e40p_core
+@@ -911,6 +1022,18 @@ module cv32e40p_core
        .lsu_ready_wb_o(lsu_ready_wb),
  
        .busy_o(lsu_busy)
@@ -560,7 +691,7 @@ index 528ac1c..63807a4 100644
    );
  
    // Tracer signal
-@@ -1028,7 +1147,12 @@ module cv32e40p_core
+@@ -1028,7 +1151,12 @@ module cv32e40p_core
        .apu_contention_i        (perf_apu_cont),
        .apu_dep_i               (perf_apu_dep),
        .apu_wb_i                (perf_apu_wb)
@@ -977,10 +1108,10 @@ index 6b58a84..b21951d 100644
    // to finish branches without going to the WB stage, ex_valid does not
    // depend on ex_ready.
 diff --git a/rtl/cv32e40p_id_stage.sv b/rtl/cv32e40p_id_stage.sv
-index 0f54e31..6acb6f6 100644
+index 0f54e31..d8a564d 100644
 --- a/rtl/cv32e40p_id_stage.sv
 +++ b/rtl/cv32e40p_id_stage.sv
-@@ -248,6 +248,38 @@ module cv32e40p_id_stage
+@@ -248,6 +248,39 @@ module cv32e40p_id_stage
  
      input logic        perf_imiss_i,
      input logic [31:0] mcounteren_i
@@ -1001,6 +1132,7 @@ index 0f54e31..6acb6f6 100644
 +    output logic        jump_target_o_tag,                 // To IF   : jump target tag
 +    output logic        pc_ex_o_tag,                       // To CSR
 +    output logic        pc_set_o_tag,                      // To IF   : enable PC tag → IF
++    output logic        pc_set_exc_o_tag,                  // To EX   : exception PC redirect
 +    output logic [ALU_MODE_WIDTH-1:0] alu_operator_o_mode, // To EX   : mode de propagation → EX
 +    output logic        store_dest_addr_ex_o_tag,          // To EX
 +    output logic        store_source_ex_o_tag,             // To EX
@@ -1019,7 +1151,7 @@ index 0f54e31..6acb6f6 100644
  );
  
    // Source/Destination register instruction index
-@@ -346,6 +378,35 @@ module cv32e40p_id_stage
+@@ -346,6 +379,35 @@ module cv32e40p_id_stage
    logic [31:0] regfile_data_rb_id;
    logic [31:0] regfile_data_rc_id;
  
@@ -1055,7 +1187,7 @@ index 0f54e31..6acb6f6 100644
    // ALU Control
    logic alu_en;
    alu_opcode_e alu_operator;
-@@ -553,6 +614,10 @@ module cv32e40p_id_stage
+@@ -553,6 +615,10 @@ module cv32e40p_id_stage
  
    assign branch_taken_ex = branch_in_ex_o && branch_decision_i;
  
@@ -1066,7 +1198,7 @@ index 0f54e31..6acb6f6 100644
  
    assign mult_en = mult_int_en | mult_dot_en;
  
-@@ -579,6 +644,19 @@ module cv32e40p_id_stage
+@@ -579,6 +645,19 @@ module cv32e40p_id_stage
  
    assign jump_target_o = jump_target;
  
@@ -1086,7 +1218,7 @@ index 0f54e31..6acb6f6 100644
  
    ////////////////////////////////////////////////////////
    //   ___                                 _      _     //
-@@ -591,12 +669,12 @@ module cv32e40p_id_stage
+@@ -591,12 +670,12 @@ module cv32e40p_id_stage
  
    // ALU_Op_a Mux
    always_comb begin : alu_operand_a_mux
@@ -1105,7 +1237,7 @@ index 0f54e31..6acb6f6 100644
        default:          alu_operand_a = operand_a_fw_id;
      endcase
      ;  // case (alu_op_a_mux_sel)
-@@ -611,15 +689,38 @@ module cv32e40p_id_stage
+@@ -611,15 +690,38 @@ module cv32e40p_id_stage
  
    // Operand a forwarding mux
    always_comb begin : operand_a_fw_mux
@@ -1148,7 +1280,7 @@ index 0f54e31..6acb6f6 100644
    //////////////////////////////////////////////////////
    //   ___                                 _   ____   //
    //  / _ \ _ __   ___ _ __ __ _ _ __   __| | | __ )  //
-@@ -649,12 +750,12 @@ module cv32e40p_id_stage
+@@ -649,12 +751,12 @@ module cv32e40p_id_stage
  
    // ALU_Op_b Mux
    always_comb begin : alu_operand_b_mux
@@ -1167,7 +1299,7 @@ index 0f54e31..6acb6f6 100644
        default:          operand_b = operand_b_fw_id;
      endcase  // case (alu_op_b_mux_sel)
    end
-@@ -677,15 +778,53 @@ module cv32e40p_id_stage
+@@ -677,15 +779,53 @@ module cv32e40p_id_stage
  
    // Operand b forwarding mux
    always_comb begin : operand_b_fw_mux
@@ -1225,7 +1357,7 @@ index 0f54e31..6acb6f6 100644
  
    //////////////////////////////////////////////////////
    //   ___                                 _    ____  //
-@@ -698,10 +837,10 @@ module cv32e40p_id_stage
+@@ -698,10 +838,10 @@ module cv32e40p_id_stage
  
    // ALU OP C Mux
    always_comb begin : alu_operand_c_mux
@@ -1240,7 +1372,7 @@ index 0f54e31..6acb6f6 100644
        default:          operand_c = operand_c_fw_id;
      endcase  // case (alu_op_c_mux_sel)
    end
-@@ -722,15 +861,36 @@ module cv32e40p_id_stage
+@@ -722,15 +862,36 @@ module cv32e40p_id_stage
  
    // Operand c forwarding mux
    always_comb begin : operand_c_fw_mux
@@ -1281,7 +1413,7 @@ index 0f54e31..6acb6f6 100644
  
    ///////////////////////////////////////////////////////////////////////////
    //  ___                              _ _       _              ___ ____   //
-@@ -933,6 +1093,180 @@ module cv32e40p_id_stage
+@@ -933,6 +1094,180 @@ module cv32e40p_id_stage
        .we_b_i   (regfile_alu_we_fw_i)
    );
  
@@ -1462,7 +1594,7 @@ index 0f54e31..6acb6f6 100644
  
    ///////////////////////////////////////////////
    //  ____  _____ ____ ___  ____  _____ ____   //
-@@ -1098,7 +1432,7 @@ module cv32e40p_id_stage
+@@ -1098,7 +1433,7 @@ module cv32e40p_id_stage
        // decoder related signals
        .deassert_we_o(deassert_we),
  
@@ -1471,17 +1603,18 @@ index 0f54e31..6acb6f6 100644
        .ecall_insn_i  (ecall_insn_dec),
        .mret_insn_i   (mret_insn_dec),
        .uret_insn_i   (uret_insn_dec),
-@@ -1129,6 +1463,9 @@ module cv32e40p_id_stage
+@@ -1129,6 +1464,10 @@ module cv32e40p_id_stage
        .exc_pc_mux_o   (exc_pc_mux_o),
        .exc_cause_o    (exc_cause_o),
        .trap_addr_mux_o(trap_addr_mux_o),
 +`ifdef DIFT
 +      .pc_set_o_tag   (pc_set_o_tag),
++      .pc_set_exc_o_tag (pc_set_exc_o_tag),
 +`endif
  
        // HWLoop signls
        .pc_id_i        (pc_id_i),
-@@ -1164,6 +1501,9 @@ module cv32e40p_id_stage
+@@ -1164,6 +1503,9 @@ module cv32e40p_id_stage
        .branch_taken_ex_i          (branch_taken_ex),
        .ctrl_transfer_insn_in_id_i (ctrl_transfer_insn_in_id),
        .ctrl_transfer_insn_in_dec_i(ctrl_transfer_insn_in_dec),
@@ -1491,7 +1624,7 @@ index 0f54e31..6acb6f6 100644
  
        // Interrupt signals
        .irq_wu_ctrl_i     (irq_wu_ctrl),
-@@ -1597,6 +1937,93 @@ module cv32e40p_id_stage
+@@ -1597,6 +1939,93 @@ module cv32e40p_id_stage
      end
    end
  
