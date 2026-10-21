@@ -53,7 +53,7 @@ def main(args: Namespace | Sequence[str] | None = None) -> int:
         raise ValueError("Missing required argument: -S, --source")
 
     try:
-        run_vunit(
+        return run_vunit(
             target=ns.target,
             top=ns.top,
             gui=ns.gui,
@@ -64,5 +64,3 @@ def main(args: Namespace | Sequence[str] | None = None) -> int:
     except KeyboardInterrupt:
         print("\nInterrupted. Exiting.")
         return 130
-
-    return 0

@@ -12,7 +12,7 @@ def run_vunit(
     gui: bool,
     source_dir: Path,
     build_dir: Optional[Path] = None,
-):
+) -> int:
     if not top:
         raise ValueError("'top' must not be empty")
 
@@ -25,6 +25,7 @@ def run_vunit(
         source_dir,
         build_dir,
         targets=[f"{target}_vunit_gen"],
+        software_targets=[],
         enable_vunit=True,
         dirty=True
     )
@@ -36,4 +37,4 @@ def run_vunit(
     cmd += ['-g'] if gui else []
     cmd += [f'lib.{top}' if '.' in top else f'lib.{top}.*']
 
-    subprocess.run(cmd, cwd=vunit_path)
+    return subprocess.run(cmd, cwd=vunit_path).returncode

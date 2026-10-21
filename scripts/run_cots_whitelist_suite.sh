@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+# Attack coverage suite (paper Table VII): attacks #1-#15 run under the
+# single boot-time COTS policy, attack #16 exercises the MMIO write guard.
+
+set -uo pipefail
 
 cases=(
   cwe_119_oob_index_cots
@@ -18,9 +21,25 @@ cases=(
   cwe_676_dangerous_strcpy_cots
   cwe_787_funcptr_cots
   cwe_824_uninit_ptr_cots
+  dift_mmio_guard
 )
+
+passed=()
+failed=()
 
 for c in "${cases[@]}"; do
   echo "==> ${c}"
-  adam run vunit --target "nexys_video_${c}" --top "adam_dift_tb.dift_${c}"
+  if adam run vunit --target "nexys_video_${c}" --top "adam_dift_tb.dift_${c#dift_}"; then
+    passed+=("${c}")
+  else
+    failed+=("${c}")
+  fi
 done
+
+echo
+echo "==> Summary: ${#passed[@]}/${#cases[@]} passed"
+for c in "${failed[@]}"; do
+  echo "    FAIL ${c}"
+done
+
+[ ${#failed[@]} -eq 0 ]

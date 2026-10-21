@@ -1411,7 +1411,7 @@ module adam_dift_tb;
             run_cots_attack_case(
                 "dift_cwe_122_heap_cots",
                 32'h40000424,
-                32'h400004e6,
+                32'h400004ea,
                 32'h400003fe,
                 PAYLOAD_64_A,
                 32'h00000000
@@ -1444,7 +1444,7 @@ module adam_dift_tb;
             run_cots_attack_case(
                 "dift_cwe_416_use_after_free_cots",
                 32'h40000420,
-                32'h400004a8,
+                32'h400004ac,
                 32'h400003fc,
                 PAYLOAD_UAF_NONZERO,
                 32'h00000000
@@ -1544,9 +1544,9 @@ module adam_dift_tb;
         `TEST_CASE("dift_cwe_476_null_deref_cots") begin
             run_cots_attack_case(
                 "dift_cwe_476_null_deref_cots",
-                32'h40000466,
-                32'h400004a8,
-                32'h40000424,
+                32'h40000476,
+                32'h400004b8,
+                32'h40000432,
                 PAYLOAD_ONE_1,
                 32'h00000000
             );
@@ -1571,6 +1571,54 @@ module adam_dift_tb;
                 32'h400003fc,
                 PAYLOAD_ONE_1,
                 32'h00000000,
+                1'b0
+            );
+        end
+
+        // bench_cots_trusted_runtime: libc/allocator over tainted input, no attack
+        `TEST_CASE("bench_cots_trusted_runtime") begin
+            run_cots_benign_runtime_case(
+                "bench_cots_trusted_runtime",
+                32'h410002c8,
+                32'h4000042e,
+                32'h40000488
+            );
+        end
+
+        // bench_uart_data_integrity: checksum over tainted UART bytes
+        `TEST_CASE("bench_uart_data_integrity") begin
+            run_uart_benign_benchmark_case(
+                "bench_uart_data_integrity",
+                32'h410002e0,
+                32'h40000450,
+                32'h4000048c,
+                PAYLOAD_UART_DATA_INTEGRITY,
+                32'h410002c4,
+                32'h00004259,
+                32'h410002c8,
+                32'h767b681a,
+                32'h410002cc,
+                32'h000023a7,
+                1'b0,
+                1'b0
+            );
+        end
+
+        // bench_uart_command_fp: UART command parser, trusted branches resolved
+        `TEST_CASE("bench_uart_command_fp") begin
+            run_uart_benign_benchmark_case(
+                "bench_uart_command_fp",
+                32'h410002d8,
+                32'h400004d2,
+                32'h40000556,
+                PAYLOAD_UART_COMMAND_SET_LED7,
+                32'h410002c0,
+                32'hd1f70077,
+                32'h410002c4,
+                32'hc0de0007,
+                32'h410002c8,
+                32'hf00d0007,
+                1'b1,
                 1'b0
             );
         end
